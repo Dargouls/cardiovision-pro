@@ -1,92 +1,155 @@
-# API de Análise de ECG com FastAPI
+# ECG-Analysis
 
-Esta API foi desenvolvida para realizar a análise de registros de ECG (Eletrocardiograma) utilizando a biblioteca `wfdb` para leitura dos arquivos e FastAPI para expor a API. O sistema permite dividir o ECG em partes e realizar análises personalizadas.
-
-## Funcionalidades
-
-- **Análise de ECG**: Recebe um caminho para o arquivo de ECG e retorna métricas e segmentos do ECG após análise.
-- **Configuração Personalizável**: Você pode definir o número de partes e a quantidade de amostras por parte.
+Este é um projeto para análise de sinais de ECG utilizando a FastAPI e Python. Ele é projetado para processar sinais de ECG e calcular métricas associadas, oferecendo uma API simples para realizar a análise de sinais de ECG em tempo real.
 
 ## Estrutura do Projeto
 
-1. **FastAPI**: Framework usado para criar a API.
-2. **wfdb**: Biblioteca utilizada para ler registros de ECG.
-3. **Uvicorn**: Servidor ASGI para rodar o FastAPI.
-4. **requests**: Para fazer requisições HTTP e testar a API localmente.
+A estrutura do projeto é a seguinte:
 
-## Como Rodar o Projeto
-
-### 1. Instalar Dependências
-
-Primeiro, instale as dependências necessárias. Você pode fazer isso criando um ambiente virtual e instalando as dependências com o `pip`:
-
-```bash
-pip install fastapi uvicorn wfdb requests
+```
+/ECG-Analysis
+│
+├── /data                    # Dados de entrada
+│   └── 418.xws              # Exemplo de arquivo de ECG
+│
+├── /src                     # Código-fonte da aplicação
+│   ├── app.py               # API FastAPI
+│   ├── client.py            # Código para enviar requisições à API
+│   ├── signal_processor.py  # Processamento de sinais ECG
+│   ├── metrics_calculator.py # Cálculo das métricas do ECG
+│   ├── plotter.py           # Funções de visualização do ECG
+│   └── main.py              # Arquivo principal para iniciar a execução
+│
+├── README.md                # Documentação do projeto
+├── requirements.txt         # Dependências do projeto
+└── .gitignore               # Arquivo para ignorar arquivos desnecessários
 ```
 
-### 2. Rodar o Servidor
+## Como Usar
 
-Execute o arquivo Python que contém a definição da API para iniciar o servidor FastAPI.
+### 1. Clonar o Repositório
+
+Clone o repositório em seu ambiente local:
 
 ```bash
-python app.py
+git clone https://github.com/seu_usuario/ECG-Analysis.git
+cd ECG-Analysis
 ```
 
-Isso irá rodar o servidor na porta `8001`. O servidor estará disponível em `http://0.0.0.0:8001/`.
+### 2. Instalar Dependências
 
-### 3. Testar a API
+Instale as dependências necessárias listadas no arquivo `requirements.txt`:
 
-Você pode testar a API localmente utilizando o código do cliente abaixo, que envia uma requisição POST para a API com dados de entrada:
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Executar a API
+
+Para iniciar a API FastAPI, execute o seguinte comando:
+
+```bash
+uvicorn src.app:app --reload
+```
+
+A API estará disponível em `http://127.0.0.1:8000`.
+
+### 4. Enviar Requisições para Análise de ECG
+
+Para enviar uma requisição POST para a API, você pode usar o `client.py`. Exemplo de código para enviar uma requisição:
 
 ```python
 import requests
 
-# Dados de entrada
 data = {
-    "record_path": "/content/pasta/418",  # Substitua pelo caminho real do arquivo ECG
+    "record_path": "data/418.xws",
     "num_parts": 2,
     "samples_per_part": 5000
 }
 
-# Endereço local do FastAPI no Colab
-url = "http://0.0.0.0:8001/analyze_ecg"
-
-# Enviar a requisição POST
+url = "http://127.0.0.1:8000/analyze_ecg"
 response = requests.post(url, json=data)
-
-# Exibir a resposta
 print(response.json())
 ```
 
-Este código enviará uma requisição para o endpoint `/analyze_ecg` com os dados especificados e imprimirá a resposta recebida.
+### 5. Visualizar o ECG
 
-## Estrutura do Código
+O arquivo `plotter.py` contém funções para plotar o gráfico do sinal ECG. Você pode usá-lo para gerar visualizações a partir do sinal de ECG processado.
 
-- **`app.py`**: Arquivo principal que contém a definição da API e o servidor FastAPI. 
-  - A API tem um endpoint POST `/analyze_ecg` que processa os dados do ECG e retorna os resultados.
-  - O servidor roda em um thread separado, permitindo que a API seja acessada sem bloquear a execução do código.
+### 6. Processamento do Sinal e Cálculo das Métricas
 
-### Exemplo de Request
+O arquivo `signal_processor.py` contém a lógica de processamento do sinal ECG, enquanto `metrics_calculator.py` realiza o cálculo das métricas associadas ao ECG, como frequência cardíaca e variabilidade.
 
-#### POST `/analyze_ecg`
+## Dependências
 
-**Dados de entrada (JSON)**:
-```json
-{
-  "record_path": "/content/pasta/418",
-  "num_parts": 2,
-  "samples_per_part": 5000
-}
+Este projeto utiliza as seguintes dependências:
+
+- FastAPI
+- uvicorn
+- requests
+- wfdb
+- matplotlib
+- numpy
+- pandas
+
+Você pode instalar todas as dependências utilizando o arquivo `requirements.txt`:
+
+```bash
+pip install -r requirements.txt
 ```
 
-**Resposta (JSON)**:
-```json
-{
-  "message": "Análise completa. Arquivos salvos.",
-  "output_files": ["ecg_metrics.json", "ecg_segments.json"]
-}
-```
+## Arquivos
+
+### `data/418.xws`
+
+Este é um arquivo de exemplo de sinal de ECG utilizado para testes.
+
+### `src/app.py`
+
+Define a API FastAPI que recebe requisições para analisar os sinais de ECG.
+
+### `src/client.py`
+
+Código para enviar requisições à API FastAPI.
+
+### `src/signal_processor.py`
+
+Contém as funções responsáveis pelo processamento do sinal ECG.
+
+### `src/metrics_calculator.py`
+
+Cálcula as métricas associadas ao ECG, como a frequência cardíaca.
+
+### `src/plotter.py`
+
+Funções para gerar visualizações do sinal ECG e das métricas calculadas.
+
+### `src/main.py`
+
+Arquivo principal para iniciar o servidor FastAPI e processar a execução.
+
+## Contribuição
+
+Sinta-se à vontade para contribuir para o projeto, seja corrigindo bugs, adicionando novos recursos ou melhorando a documentação. Para contribuir, siga estas etapas:
+
+1. Faça um fork do repositório.
+2. Crie uma nova branch (`git checkout -b nova-feature`).
+3. Faça as modificações necessárias e adicione os arquivos modificados (`git add .`).
+4. Faça um commit das suas mudanças (`git commit -m 'Nova feature'`).
+5. Envie as alterações para o seu fork (`git push origin nova-feature`).
+6. Abra um Pull Request no repositório original.
 
 ## Licença
 
-Este projeto está licenciado sob a [MIT License](LICENSE).
+Este projeto é licenciado sob a MIT License - consulte o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+---
+
+### Explicações:
+
+- **Instalação e Execução**: O `README.md` contém instruções claras sobre como instalar as dependências, executar a API e interagir com o sistema.
+- **Arquivos e Funções**: O arquivo explica a função de cada módulo dentro da pasta `/src` e como utilizá-los para realizar a análise de ECG.
+- **Dependências**: Lista as bibliotecas necessárias para executar o projeto.
+- **Contribuição**: O projeto está aberto a contribuições, e o `README.md` oferece um guia sobre como contribuir.
+
+Esse `README.md` fornece uma documentação simples e clara, facilitando a compreensão e uso do projeto por novos desenvolvedores ou colaboradores.
