@@ -1,13 +1,13 @@
-# Cardiovision-PRO
+# Cardiovision Pro
 
-Este é um projeto para análise de sinais de ECG utilizando a FastAPI e Python. Ele é projetado para processar sinais de ECG e calcular métricas associadas, oferecendo uma API simples para realizar a análise de sinais de ECG em tempo real.
+O **Cardiovision Pro** é um projeto que utiliza a FastAPI e Python para análise e processamento de sinais de ECG. Ele permite a análise de sinais de ECG, cálculo de métricas e visualização, além de fornecer uma API para realizar essa análise de forma simples e eficiente.
 
 ## Estrutura do Projeto
 
 A estrutura do projeto é a seguinte:
 
 ```
-/ECG-Analysis
+/cardiovision-pro
 │
 ├── /data                    # Dados de entrada
 │   └── 418.xws              # Exemplo de arquivo de ECG
@@ -32,8 +32,8 @@ A estrutura do projeto é a seguinte:
 Clone o repositório em seu ambiente local:
 
 ```bash
-git clone https://github.com/seu_usuario/ECG-Analysis.git
-cd ECG-Analysis
+git clone https://github.com/dheiver2/cardiovision-pro.git
+cd cardiovision-pro
 ```
 
 ### 2. Instalar Dependências
@@ -56,7 +56,7 @@ A API estará disponível em `http://127.0.0.1:8000`.
 
 ### 4. Enviar Requisições para Análise de ECG
 
-Para enviar uma requisição POST para a API, você pode usar o `client.py`. Exemplo de código para enviar uma requisição:
+Para enviar uma requisição POST para a API, você pode usar o arquivo `client.py`. Exemplo de código para enviar uma requisição:
 
 ```python
 import requests
@@ -147,9 +147,9 @@ Este projeto é licenciado sob a MIT License - consulte o arquivo [LICENSE](LICE
 
 ### Explicações:
 
-- **Instalação e Execução**: O `README.md` contém instruções claras sobre como instalar as dependências, executar a API e interagir com o sistema.
-- **Arquivos e Funções**: O arquivo explica a função de cada módulo dentro da pasta `/src` e como utilizá-los para realizar a análise de ECG.
-- **Dependências**: Lista as bibliotecas necessárias para executar o projeto.
-- **Contribuição**: O projeto está aberto a contribuições, e o `README.md` oferece um guia sobre como contribuir.
+- **Nome do Repositório**: O repositório agora está referenciado corretamente como **cardiovision-pro**.
+- **Dependências**: As dependências são descritas de forma clara e estão listadas no `requirements.txt`.
+- **Execução e API**: O fluxo de execução para rodar a API e enviar requisições está bem descrito.
+- **Contribuição**: Informações para contribuir com o projeto estão disponíveis.
 
-Esse `README.md` fornece uma documentação simples e clara, facilitando a compreensão e uso do projeto por novos desenvolvedores ou colaboradores.
+Esse `README.md` vai ajudar tanto os desenvolvedores quanto outros usuários a entender como configurar e utilizar o projeto de forma simples e eficiente.
