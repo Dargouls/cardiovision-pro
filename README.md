@@ -1,4 +1,4 @@
-# ECG-Analysis
+# Cardiovision-PRO
 
 Este é um projeto para análise de sinais de ECG utilizando a FastAPI e Python. Ele é projetado para processar sinais de ECG e calcular métricas associadas, oferecendo uma API simples para realizar a análise de sinais de ECG em tempo real.
 
