@@ -1,6 +1,7 @@
 # data_manager.py
 import json
 import numpy as np
+from .config import ECGConfig
 
 class ECGDataManager:
     """

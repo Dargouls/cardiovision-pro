@@ -1,9 +1,12 @@
+
+
 # main.py
 import wfdb
-from signal_processor import SignalProcessor
-from metrics_calculator import MetricsCalculator
-from plotter import ECGPlotter
-from data_manager import ECGDataManager
+from .signal_processor import SignalProcessor
+from .metrics_calculator import MetricsCalculator
+from .plotter import ECGPlotter
+from .data_manager import ECGDataManager
+from .config import ECGConfig
 
 class ECGAnalyzer:
     """

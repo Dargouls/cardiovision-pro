@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime
-from config import ECGConfig
+from .config import ECGConfig
 
 class ECGPlotter:
     """

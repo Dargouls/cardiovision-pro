@@ -1,7 +1,7 @@
 # metrics_calculator.py
 import numpy as np
-from signal_processor import SignalProcessor
 import json
+from .config import ECGConfig
 
 class MetricsCalculator:
     """

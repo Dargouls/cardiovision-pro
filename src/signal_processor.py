@@ -1,7 +1,7 @@
 # signal_processor.py
 import numpy as np
 from scipy.signal import butter, filtfilt, find_peaks
-from config import ECGConfig
+from .config import ECGConfig
 
 class SignalProcessor:
     """

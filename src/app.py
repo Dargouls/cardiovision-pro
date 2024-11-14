@@ -5,6 +5,7 @@ import wfdb
 from typing import Optional
 import uvicorn
 from threading import Thread
+from .main import ECGAnalyzer
 
 # Definição da API FastAPI
 app = FastAPI()
