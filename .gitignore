@@ -2,7 +2,7 @@
 venv/
 env/
 *.env
-
+upload/
 # Ignorar arquivos de cache
 __pycache__/
 *.pyc
