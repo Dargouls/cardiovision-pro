@@ -15,7 +15,7 @@ app = FastAPI()
 
 @app.post("/analyze_ecg")
 async def analyze_ecg(
-    num_parts: Optional[int] = Form(24),  # Número de partes
+    num_parts: Optional[int] = Form(1),  # Número de partes
     samples_per_part: Optional[int] = Form(5000),  # Número de amostras por parte
     files: List[UploadFile] = File(...),  # Arquivos a serem enviados
 ):
@@ -23,24 +23,23 @@ async def analyze_ecg(
         # Processar os arquivos recebidos
         file_paths = []
         for file in files:
-            # Usar o diretório de uploads definido
             file_path = os.path.join(UPLOAD_DIR, file.filename)
             with open(file_path, "wb") as f:
                 f.write(await file.read())
             file_paths.append(file_path)
 
-        # Exemplo de como pegar o primeiro arquivo para o processamento
-        record = wfdb.rdrecord(file_paths[0])  # Supondo que você esteja analisando o primeiro arquivo
+        # Processar o primeiro arquivo recebido
+        record = wfdb.rdrecord(file_paths[0])
 
         # Criar a instância do analisador
         analyzer = ECGAnalyzer(record, num_parts, samples_per_part)
 
-        # Executar a análise
-        analyzer.analyze()
-
+        # Executar a análise e capturar os resultados
+        metrics, segments_data = analyzer.analyze(return_data=True)
         return {
-            "message": "Análise completa. Arquivos salvos.",
-            "output_files": ["ecg_metrics.json", "ecg_segments.json"]
+            "message": "Análise completa.",
+            "metrics": metrics,
+            "segments": segments_data,
         }
 
     except Exception as e:
