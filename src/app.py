@@ -3,9 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from typing import List, Optional
 import os
-from pydantic import BaseModel
 import wfdb
-from .main import ECGAnalyzer
+from .ecg_analysis.main import ECGAnalyzer
 
 # Definir o diretório onde os arquivos serão salvos
 UPLOAD_DIR = "./uploads"  # Defina um diretório válido dentro do seu projeto
@@ -30,7 +29,7 @@ app.add_middleware(
     
 @app.post("/analyze_ecg")
 async def analyze_ecg(
-    num_parts: Optional[int] = Form(1),  # Número de partes
+    num_parts: Optional[int] = Form(2),  # Número de partes
     samples_per_part: Optional[int] = Form(5000),  # Número de amostras por parte
     files: List[UploadFile] = File(...),  # Arquivos a serem enviados
 ):
@@ -91,6 +90,11 @@ async def analyze_ecg_img(
     try:
         # Processar os arquivos recebidos
         file_paths = []
+        
+        # Limpar o diretório
+        for file_path in file_paths:
+            os.remove(file_path)  # Remove o arquivo temporário
+        
         for file in files:
             # Usar o diretório de uploads definido
             file_path = os.path.join(UPLOAD_DIR, file.filename)
@@ -107,6 +111,10 @@ async def analyze_ecg_img(
         # Executar a análise
         analyzer.analyze()
 
+				 # Excluir os arquivos após o uso
+        for file_path in file_paths:
+            os.remove(file_path)  # Remove o arquivo temporário
+        print('Limpar lixo')
         return {
             "message": "Análise completa. Arquivos salvos.",
             "output_files": ["ecg_metrics.json", "ecg_segments.json"]
