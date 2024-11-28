@@ -79,6 +79,10 @@ async def analyze_ecg(
         }
 
     except Exception as e:
+      # Excluir os arquivos após o uso
+        # for file_path in file_paths:
+        #     os.remove(file_path)  # Remove o arquivo temporário
+        # print('Limpar lixo')
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/analyze_ecg_img")
