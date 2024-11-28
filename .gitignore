@@ -17,7 +17,7 @@ data/
 # Ignorar arquivos de configuração do IDE
 .vscode/
 .idea/
-
+Procfile
 # Ignorar arquivos do sistema operacional
 .DS_Store
 Thumbs.db
