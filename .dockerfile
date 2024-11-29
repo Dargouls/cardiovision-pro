@@ -11,8 +11,9 @@ WORKDIR /app
 # Copiar o arquivo requirements.txt para o container
 COPY requirements.txt .
 
-# Instalar o pip mais recente e pandas com preferência por versão binária
-RUN pip install --upgrade pip && pip install --prefer-binary pandas
+COPY pandas-1.5.3-cp310-cp310-win_amd64.whl /app/
+
+RUN pip install /app/pandas-1.5.3-cp310-cp310-win_amd64.whl
 
 # Instalar as demais dependências do requirements.txt
 RUN pip install --prefer-binary -r requirements.txt
