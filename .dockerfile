@@ -1,5 +1,5 @@
 # img python
-FROM python:3.10.11
+FROM python:3.10.11-slim as builder
 
 # Dir de trabalho
 WORKDIR /app
