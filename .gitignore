@@ -18,6 +18,10 @@ data/
 .vscode/
 .idea/
 Procfile
+Scripts
+Lib
+pyvenv.cfg
+/share
 # Ignorar arquivos do sistema operacional
 .DS_Store
 Thumbs.db
