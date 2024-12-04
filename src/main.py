@@ -27,6 +27,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))  # Porta do ambiente ou padrão local
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    
     
 @app.post("/analyze_ecg")
 async def analyze_ecg(
@@ -131,5 +135,3 @@ async def analyze_ecg_img(
 @app.get("/")
 def read_root():
     return {"message": "Bem-vindo à API de Análise de ECG com FastAPI!"}
-
-
