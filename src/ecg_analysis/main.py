@@ -2,7 +2,6 @@ import json
 import wfdb
 import numpy as np
 import os
-import uvicorn
 from .signal_processor import SignalProcessor
 from .metrics_calculator import MetricsCalculator
 from .plotter import ECGPlotter
@@ -147,8 +146,3 @@ def analyze_ecg(record_path, num_parts=24, samples_per_part=5000):
     print("- ecg_metrics.json")
     print("- ecg_segments.json")
 
-# Exemplo de uso
-if __name__ == "__main__":
-    from src.app import app
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)

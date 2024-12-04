@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
 from typing import List, Optional
 import os
@@ -130,3 +131,10 @@ async def analyze_ecg_img(
 @app.get("/")
 def read_root():
     return {"message": "Bem-vindo à API de Análise de ECG com FastAPI!"}
+
+
+# Exemplo de uso
+if __name__ == "__main__":
+    from src.app import app
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
