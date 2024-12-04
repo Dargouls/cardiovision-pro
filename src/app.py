@@ -133,8 +133,6 @@ def read_root():
     return {"message": "Bem-vindo à API de Análise de ECG com FastAPI!"}
 
 
-# Exemplo de uso
 if __name__ == "__main__":
-    from src.app import app
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT", 8000))  # Porta do ambiente ou padrão local
+    uvicorn.run("src.app:app", host="0.0.0.0", port=port, reload=True)
