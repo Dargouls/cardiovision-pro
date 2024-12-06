@@ -130,4 +130,4 @@ async def analyze_ecg_img(
       
 @app.get("/")
 def healthCheck():
-    return {"message": "Bem-vindo à API de Análise de ECG com FastAPI!"}
+    return {"status": "ok"}
