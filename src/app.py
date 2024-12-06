@@ -129,5 +129,5 @@ async def analyze_ecg_img(
         raise HTTPException(status_code=500, detail=str(e))
       
 @app.get("/")
-def read_root():
+def healthCheck():
     return {"message": "Bem-vindo à API de Análise de ECG com FastAPI!"}
