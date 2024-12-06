@@ -1,11 +1,15 @@
+import logging
+
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 
 from typing import List, Optional
 import os
 import wfdb
 from .ecg_analysis.main import ECGAnalyzer
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("uvicorn")
 
 # Definir o diretório onde os arquivos serão salvos
 UPLOAD_DIR = "./uploads"  # Defina um diretório válido dentro do seu projeto
