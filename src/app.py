@@ -132,10 +132,6 @@ async def analyze_ecg_img(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/start")
-async def start():
-		return {"status": "ok"}
-
 @app.get("/")
 def healthCheck():
-    return {"status": "ok"}
+    return {"message": "Hello World"}
