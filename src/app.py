@@ -3,6 +3,10 @@ import logging
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 
+from .utils.getAvailableRecords import get_available_records
+
+from .p_wave.routes import app as p_wave_Routes
+from .reportMetrics.api import app as reportMetrics_Routes
 from typing import List, Optional
 import os
 import wfdb
@@ -31,7 +35,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-    
+app.include_router(reportMetrics_Routes)
+
 @app.post("/analyze_ecg")
 async def analyze_ecg(
     num_parts: Optional[int] = Form(2),  # Número de partes
@@ -46,23 +51,22 @@ async def analyze_ecg(
         for file_path in file_paths:
             os.remove(file_path)  # Remove o arquivo temporário
         
-        # Ordenar os arquivos antes de processá-los, de preferência primeiro .dat, depois .hea
-        files = sorted(files, key=lambda f: f.filename)
-        
         for file in files:
             file_path = os.path.join(UPLOAD_DIR, file.filename)
             with open(file_path, "wb") as f:
                 f.write(await file.read())
             file_paths.append(file_path)
         
-        print('criação de caminhos feita', file_paths)
+         # Ordenar os arquivos para garantir que .hea seja o primeiro
+        file_paths = sorted(file_paths, key=lambda path: (not path.endswith('.hea'), path))
 
+        hea_file = get_available_records()[0]
         # Agora os arquivos estão ordenados, o que deve garantir que o arquivo .dat e .hea
         # sejam lidos na ordem correta
         try:
-            record = wfdb.rdrecord(file_paths[0])  # Supondo que o primeiro arquivo seja o correto
+          record = wfdb.rdrecord(UPLOAD_DIR + '/' + hea_file)  # Supondo que o primeiro arquivo seja o correto
         except Exception as e:
-            print(f"Erro ao tentar carregar o arquivo: {e}")
+          print(f"Erro ao tentar carregar o arquivo: {e}")
 
         print('salvar arquivos feito')
         # Criar a instância do analisador
