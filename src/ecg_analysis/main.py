@@ -32,9 +32,7 @@ class ECGAnalyzer:
 		Realiza análise completa do ECG.
 		"""
 		# Calcular métricas usando o primeiro canal
-		print('init')
-		metrics = self.metrics_calculator.calculate_metrics(self.record.p_signal[:, 0])
-		print('metrics', metrics)
+		# metrics = self.metrics_calculator.calculate_metrics(self.record.p_signal[:, 0])
 
 		# Processar segmentos
 		segments_data = {}
@@ -63,7 +61,6 @@ class ECGAnalyzer:
 						"leads_data": serializable_segment_data
 				}
 
-		print('segments')
 # Processando os dados em segments_data
 		for segment, segment_data in segments_data.items():
 				leads_data = segment_data['leads_data']
@@ -77,22 +74,8 @@ class ECGAnalyzer:
 								# Se o valor não for um dicionário, apenas converta o valor
 								leads_data[key] = convert_numpy_to_native(value)
 
-		if return_data:
-				# Converter métricas para tipos serializáveis (se necessário)
-				metrics_serializable = {key: float(value) for key, value in metrics.items()}
-				return metrics_serializable, segments_data
-		
-		# Plotar segmentos
-		for part in range(self.num_parts):
-				segment = segments_data[f"segment_{part + 1}"]
-				segment_info = {
-						"segment_number": part + 1,
-						"total_segments": self.num_parts,
-						"start_time": segment["start_time"],
-						"end_time": segment["end_time"]
-				}
-				self.plotter.plot_segment(segment["leads_data"], segment_info)
-
+		print('segments_data', segments_data)
+		return segments_data
 
 	def analyze_img(self):
 			"""
@@ -148,5 +131,3 @@ def analyze_ecg(record_path, num_parts=24, samples_per_part=5000):
     analyzer = ECGAnalyzer(record, num_parts, samples_per_part)
     analyzer.analyze()
     print("Análise completa. Arquivos salvos:")
-    print("- ecg_metrics.json")
-    print("- ecg_segments.json")

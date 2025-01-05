@@ -4,9 +4,12 @@ from fastapi import FastAPI, HTTPException, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 
 from .utils.getAvailableRecords import get_available_records
+from .utils.saveTempFiles import saveTempFiles
+from .utils.clearTempFiles import clear_upload_directory
 
-from .p_wave.routes import app as p_wave_Routes
-from .reportMetrics.api import app as reportMetrics_Routes
+from .ecg_analysis.api import app as ecgAnalysis_Routes, get_segments
+from .reportMetrics.api import app as reportMetrics_Routes, get_frequencies_chart, get_metrics
+
 from typing import List, Optional
 import os
 import wfdb
@@ -36,105 +39,23 @@ app.add_middleware(
 )
 
 app.include_router(reportMetrics_Routes)
-
+app.include_router(ecgAnalysis_Routes)
+  
 @app.post("/analyze_ecg")
 async def analyze_ecg(
     num_parts: Optional[int] = Form(2),  # Número de partes
     samples_per_part: Optional[int] = Form(5000),  # Número de amostras por parte
     files: List[UploadFile] = File(...),  # Arquivos a serem enviados
-):
-
-    try:
-        # Processar os arquivos recebidos e armazenar temporariamente
-        file_paths = []
-        # Limpar o diretório
-        for file_path in file_paths:
-            os.remove(file_path)  # Remove o arquivo temporário
-        
-        for file in files:
-            file_path = os.path.join(UPLOAD_DIR, file.filename)
-            with open(file_path, "wb") as f:
-                f.write(await file.read())
-            file_paths.append(file_path)
-        
-         # Ordenar os arquivos para garantir que .hea seja o primeiro
-        file_paths = sorted(file_paths, key=lambda path: (not path.endswith('.hea'), path))
-
-        hea_file = get_available_records()[0]
-        # Agora os arquivos estão ordenados, o que deve garantir que o arquivo .dat e .hea
-        # sejam lidos na ordem correta
-        try:
-          record = wfdb.rdrecord(UPLOAD_DIR + '/' + hea_file)  # Supondo que o primeiro arquivo seja o correto
-        except Exception as e:
-          print(f"Erro ao tentar carregar o arquivo: {e}")
-
-        print('salvar arquivos feito')
-        # Criar a instância do analisador
-        analyzer = ECGAnalyzer(record, num_parts, samples_per_part)
-
-        # Executar a análise e capturar os resultados
-        metrics, segments_data = analyzer.analyze(return_data=True)
-        print('Analizador de arquivos feito')
-
-        # Excluir os arquivos após o uso
-        for file_path in file_paths:
-            os.remove(file_path)  # Remove o arquivo temporário
-        print('Limpar lixo')
-
-        return {
-            "message": "Análise completa.",
-            "metrics": metrics,
-            "segments": segments_data,
-        }
-
-    except Exception as e:
-      # Excluir os arquivos após o uso
-        # for file_path in file_paths:
-        #     os.remove(file_path)  # Remove o arquivo temporário
-        # print('Limpar lixo')
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/analyze_ecg_img")
-async def analyze_ecg_img(
-    num_parts: Optional[int] = Form(1),  # Número de partes
-    samples_per_part: Optional[int] = Form(5000),  # Número de amostras por parte
-    files: List[UploadFile] = File(...),  # Arquivos a serem enviados
-):
-    try:
-        # Processar os arquivos recebidos
-        file_paths = []
-        
-        # Limpar o diretório
-        for file_path in file_paths:
-            os.remove(file_path)  # Remove o arquivo temporário
-        
-        for file in files:
-            # Usar o diretório de uploads definido
-            file_path = os.path.join(UPLOAD_DIR, file.filename)
-            with open(file_path, "wb") as f:
-                f.write(await file.read())
-            file_paths.append(file_path)
-
-        # Exemplo de como pegar o primeiro arquivo para o processamento
-        record = wfdb.rdrecord(file_paths[0])  # Supondo que você esteja analisando o primeiro arquivo
-
-        # Criar a instância do analisador
-        analyzer = ECGAnalyzer(record, num_parts, samples_per_part)
-
-        # Executar a análise
-        analyzer.analyze()
-
-				 # Excluir os arquivos após o uso
-        for file_path in file_paths:
-            os.remove(file_path)  # Remove o arquivo temporário
-        print('Limpar lixo')
-        return {
-            "message": "Análise completa. Arquivos salvos.",
-            "output_files": ["ecg_metrics.json", "ecg_segments.json"]
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+):  
+  file_paths = await saveTempFiles(files)
+  
+  segmentation = await get_segments(UPLOAD_DIR, num_parts, samples_per_part, file_paths)
+  frequenciesChart = await get_frequencies_chart()
+  metrics = await get_metrics()
+  
+  clear_upload_directory(UPLOAD_DIR)
+  
+  return {"segmentation": segmentation, "frequenciesChart": frequenciesChart, "metrics": metrics}
 
 @app.get("/")
 def healthCheck():

@@ -45,7 +45,6 @@ class ECGDataManager:
                     lead: {
                         "signal": data["signal"].tolist(),
                         "r_peaks": data["r_peaks"].tolist(),
-                        "time_points": data["time_points"].tolist(),
                         "sampling_rate": data["sampling_rate"]
                     }
                     for lead, data in segment["leads_data"].items()

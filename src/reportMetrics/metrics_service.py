@@ -406,7 +406,6 @@ def save_complete_analysis(record_path):
             'formatted_report': report,
             'analysis_time': datetime.now().isoformat(),
             'record_info': {
-                'path': str(record_path),
                 'files': {
                     'hea': os.path.exists(record_path + '.hea'),
                     'dat': os.path.exists(record_path + '.dat'),
@@ -414,7 +413,6 @@ def save_complete_analysis(record_path):
                     'xws': os.path.exists(record_path + '.xws')
                 }
             },
-            'config_used': CONFIG,
             'signal_info': {
                 'sampling_frequency': numpy_to_python(analyzer.record.fs),
                 'n_channels': numpy_to_python(analyzer.record.n_sig),
@@ -428,8 +426,6 @@ def save_complete_analysis(record_path):
         output_file = Path(RESULTS_FOLDER) / f"{os.path.basename(record_path)}_complete_analysis.json"
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(complete_data, f, indent=2, ensure_ascii=False)
-        
-        print(f"Análise completa salva em: {output_file}")
         
         # Também exibe o relatório formatado
         print("\nRELATÓRIO FORMATADO:")

@@ -97,9 +97,7 @@ class ECGAnalyzer:
           # Save annotations if available
           if annotations:
               result_data['annotations'] = {
-                  'sample_points': [int(x) for x in annotations.sample],
-                  'symbols': list(annotations.symbol),
-                  'aux_note': list(annotations.aux_note)
+                'sample_points': [int(x) for x in annotations.sample]
               }
 
           # Define periods to analyze
@@ -181,7 +179,7 @@ class ECGAnalyzer:
                     print(f"  .dat: Present")
                     print(f"  .atr: {'Present' if atr_file.exists() else 'Missing'}")
                     print(f"  .xws: {'Present' if xws_file.exists() else 'Missing'}")
-                    
+
             return records
         except Exception as e:
             print(f"Error listing records: {str(e)}")
