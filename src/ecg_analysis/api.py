@@ -24,6 +24,7 @@ async def get_segments(
     hea_file = get_available_records()[0]
     # Agora os arquivos estão ordenados, o que deve garantir que o arquivo .dat e .hea
     # sejam lidos na ordem correta
+    print('arquivo hea: ', hea_file)
     try:
       record = wfdb.rdrecord(upload_dir + '/' + hea_file)  # Supondo que o primeiro arquivo seja o correto
     except Exception as e:
@@ -35,6 +36,7 @@ async def get_segments(
     # Executar a análise e capturar os resultados
     segments_data = analyzer.analyze(return_data=True)
     
+    print('segmentação pronta')
     return {
       "segments": segments_data,
     }

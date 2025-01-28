@@ -65,7 +65,6 @@ class HolterAnalyzer:
         # Carrega dados do sinal (.hea e .dat)
         try:
           self.record = wfdb.rdrecord(self.record_path)
-          print(f"Carregando arquivos .hea e .dat de {self.record}")
         except Exception as e:
           raise ValueError(f"Erro ao carregar arquivos .hea/.dat: {str(e)}")
             
@@ -185,10 +184,13 @@ class HolterAnalyzer:
             (hr <= CONFIG['hr']['limits'][1])
         ]
         
+        
+        print("Estatísticas RR...", valid_rr)
         # Estatísticas RR
         mean_rr = np.median(valid_rr)
         rr_mad = np.median(np.abs(valid_rr - mean_rr))
         
+        print("Detecção de arritmias...", fs)
         # Detecção de arritmias
         if self.annotations is not None:
             vent_idx = np.where(np.isin(self.annotations.symbol, ['V']))[0]
@@ -243,9 +245,9 @@ class HolterAnalyzer:
             },
             'annotations_used': self.annotations is not None,
             'signal_stats': {
-                'mean': numpy_to_python(np.mean(signal)),
-                'std': numpy_to_python(np.std(signal)),
-                'peak_to_peak': numpy_to_python(np.ptp(signal))
+                'mean': numpy_to_python(np.nan_to_num(np.mean(signal))) or 0,
+                'std': numpy_to_python(np.nan_to_num(np.std(signal))) or 0,
+                'peak_to_peak': numpy_to_python(np.nan_to_num(np.ptp(signal))) or 0
             }
         }
         

@@ -18,6 +18,8 @@ class ECGDataManager:
         
         for lead_idx, lead_name in enumerate(leads):
             signal = raw_data[start_idx:end_idx, lead_idx]
+            signal = np.nan_to_num(signal, nan=0.0)
+
             filtered_signal = self.signal_processor.apply_filters(signal)
             normalized_signal = self.signal_processor.normalize_signal(filtered_signal)
             peaks = self.signal_processor.detect_qrs_complexes(normalized_signal)

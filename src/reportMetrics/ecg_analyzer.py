@@ -46,6 +46,8 @@ class ECGAnalyzer:
         """Load an ECG record and its annotations."""
         try:
             record_path = self.base_path / record_name
+            print('record_path: ', record_path)
+            
             record = wfdb.rdrecord(str(record_path))
             
             try:
@@ -85,7 +87,7 @@ class ECGAnalyzer:
       try:
           # Load the signal and annotations
           signal, fs, annotations = self.load_record(record_name, channel)
-
+          
           # Save basic record info
           result_data['record_info'] = {
               'sampling_frequency': int(fs),
@@ -93,7 +95,7 @@ class ECGAnalyzer:
               'channel': channel,
               'n_samples': int(len(signal))
           }
-
+          print('result_data: ', result_data.record_info)
           # Save annotations if available
           if annotations:
               result_data['annotations'] = {
@@ -144,6 +146,7 @@ class ECGAnalyzer:
 
           # Convert all numpy types before JSON serialization
           result_data = self._convert_numpy_types(result_data)
+          print('result_data: ', result_data)
 
           return result_data
 
@@ -155,7 +158,6 @@ class ECGAnalyzer:
     def save_complete_analysis(self, record_name):
       analysis_data = self.analyze_ecg(record_name)
       if analysis_data:
-        print(f"Complete analysis saved successfully for record {record_name}")
         return analysis_data
         
       return False
