@@ -95,11 +95,12 @@ class ECGAnalyzer:
               'channel': channel,
               'n_samples': int(len(signal))
           }
-          print('result_data: ', result_data.record_info)
+          print('result_data: ', result_data['record_info'])  # Corrected this line
+          
           # Save annotations if available
           if annotations:
               result_data['annotations'] = {
-                'sample_points': [int(x) for x in annotations.sample]
+                  'sample_points': [int(x) for x in annotations.sample]
               }
 
           # Define periods to analyze

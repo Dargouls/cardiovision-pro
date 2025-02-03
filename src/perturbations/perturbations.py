@@ -1,37 +1,31 @@
 import wfdb
 import numpy as np
-import matplotlib.pyplot as plt
-from pathlib import Path
 import json
-import datetime
-from scipy.signal import welch, butter, filtfilt, hilbert
-from scipy import stats
-
-plt.rcParams['axes.titlesize'] = 10
-plt.rcParams['axes.labelsize'] = 8
+from pathlib import Path
+from scipy.signal import welch
 
 class AnalisadorInterferencia:
     PARAMS = {
         'interferencia_rede': {
-            'freq': [50, 60],     # Frequências da rede elétrica em Hz
-            'limiar': 5.0         # Limiar para considerar interferência significativa
+            'freq': [50, 60],
+            'limiar': 5.0
         },
         'ruido_base': {
-            'janela': 100,        # Tamanho da janela para análise de ruído de base
-            'limiar': 2.0         # Limiar em desvios padrão
+            'janela': 100,
+            'limiar': 2.0
         },
         'mau_contato': {
-            'limiar_var': 0.001,  # Variância mínima para detectar mau contato
-            'duracao_min': 0.1    # Duração mínima em segundos
+            'limiar_var': 0.001,
+            'duracao_min': 0.1
         },
         'tremor_muscular': {
-            'freq_min': 20,       # Frequência mínima para tremor muscular
-            'freq_max': 50,       # Frequência máxima para tremor muscular
-            'limiar': 3.0         # Limiar para detecção
+            'freq_min': 20,
+            'freq_max': 50,
+            'limiar': 3.0
         },
         'desconexao': {
-            'limiar_amp': 0.05,   # Amplitude mínima para considerar desconexão
-            'duracao_min': 0.2    # Duração mínima em segundos
+            'limiar_amp': 0.05,
+            'duracao_min': 0.2
         }
     }
 
@@ -47,91 +41,78 @@ class AnalisadorInterferencia:
             raise ValueError(f"Erro ao carregar registro: {str(e)}")
 
     def detectar_interferencia_rede(self, sinal, fs):
-        """Detecta interferência da rede elétrica."""
         freq, psd = welch(sinal, fs=fs, nperseg=int(fs))
-        scores = {}
+        freq = np.round(freq).astype(int)
+        interferencias = []
 
         for freq_rede in self.PARAMS['interferencia_rede']['freq']:
             idx = np.argmin(np.abs(freq - freq_rede))
             potencia = psd[idx]
             potencia_vizinha = np.mean(psd[max(0, idx-2):idx] + psd[idx+1:idx+3])
-            scores[freq_rede] = potencia / potencia_vizinha if potencia_vizinha > 0 else 0
+            score = potencia / potencia_vizinha if potencia_vizinha > 0 else 0
+            interferencias.append({"frequencia": int(freq_rede), "score": score})
 
-        return scores, freq, psd
+        return interferencias, freq.tolist(), psd.tolist()
 
     def detectar_mau_contato(self, sinal, fs):
-        """Detecta regiões com mau contato do eletrodo."""
         amostras_min = int(self.PARAMS['mau_contato']['duracao_min'] * fs)
         var_local = np.array([np.var(sinal[i:i+amostras_min])
                             for i in range(0, len(sinal)-amostras_min)])
 
         regioes_mau_contato = np.where(var_local < self.PARAMS['mau_contato']['limiar_var'])[0]
-        return regioes_mau_contato
+        return regioes_mau_contato.tolist()
 
     def detectar_tremor_muscular(self, sinal, fs):
-        """Detecta interferência por tremor muscular."""
         freq, psd = welch(sinal, fs=fs, nperseg=int(fs))
-
-        # Região de frequência do tremor muscular
         mask = (freq >= self.PARAMS['tremor_muscular']['freq_min']) & \
                (freq <= self.PARAMS['tremor_muscular']['freq_max'])
-
+        
         potencia_tremor = np.mean(psd[mask])
         potencia_total = np.mean(psd)
-
-        return potencia_tremor / potencia_total if potencia_total > 0 else 0
+        return {
+            'score': float(potencia_tremor / potencia_total) if potencia_total > 0 else 0.0,
+            'frequencias': [self.PARAMS['tremor_muscular']['freq_min'], 
+                               self.PARAMS['tremor_muscular']['freq_max']],
+            'limiar': self.PARAMS['tremor_muscular']['limiar']
+        }
 
     def detectar_desconexao(self, sinal, fs):
-        """Detecta momentos de desconexão total do eletrodo."""
         amostras_min = int(self.PARAMS['desconexao']['duracao_min'] * fs)
         amplitude = np.abs(sinal)
+        regioes = np.where(amplitude < self.PARAMS['desconexao']['limiar_amp'])[0]
 
-        # Encontra regiões com amplitude muito baixa
-        regioes_desconexao = np.where(amplitude < self.PARAMS['desconexao']['limiar_amp'])[0]
+        grupos = []
+        if len(regioes) > 0:
+            gaps = np.diff(regioes)
+            breaks = np.where(gaps > 1)[0] + 1
+            segmentos = np.split(regioes, breaks)
 
-        # Agrupa regiões contínuas
-        if len(regioes_desconexao) > 0:
-            gaps = np.diff(regioes_desconexao)
-            breaks = np.where(gaps > 1)[0]
-
-            grupos = []
-            inicio = 0
-            for b in breaks:
-                if b - inicio >= amostras_min:
-                    grupos.append((regioes_desconexao[inicio], regioes_desconexao[b]))
-                inicio = b + 1
-
-            if len(regioes_desconexao) - inicio >= amostras_min:
-                grupos.append((regioes_desconexao[inicio], regioes_desconexao[-1]))
-
-            return grupos
-        return []
+            for seg in segmentos:
+                if len(seg) >= amostras_min:
+                    grupos.append({
+                        'inicio': int(seg[0]),
+                        'fim': int(seg[-1]),
+                        'duracao': len(seg)/fs
+                    })
+        return grupos
 
     def analisar_interferencias(self, nome_registro, duracao=10, canal=0):
-        """Analisa interferências e problemas técnicos no sinal."""
         try:
             sinal, fs = self.carregar_sinal(nome_registro, canal)
-
-            # Janela de análise
             janela_sinal = sinal[:int(duracao * fs)]
-            tempo = np.arange(len(janela_sinal)) / fs
 
-            # Análises
-            scores_rede, freq, psd = self.detectar_interferencia_rede(janela_sinal, fs)
-            regioes_mau_contato = self.detectar_mau_contato(janela_sinal, fs)
-            score_tremor = self.detectar_tremor_muscular(janela_sinal, fs)
-            desconexoes = self.detectar_desconexao(janela_sinal, fs)
-
-            # Dados para o cliente
+            # Executa todas as análises
+            interferencia_rede, freq, psd = self.detectar_interferencia_rede(janela_sinal, fs)
+            
             dados_cliente = {
                 'sinal': janela_sinal.tolist(),
-                'tempo': tempo.tolist(),
-                'frequencias': freq.tolist(),
-                'psd': psd.tolist(),
-                'interferencia_rede': scores_rede,
-                'mau_contato': len(regioes_mau_contato),
-                'score_tremor': score_tremor,
-                'desconexoes': len(desconexoes)
+                'frequencias': freq,
+                'psd': psd,
+                'interferencia_rede': interferencia_rede,
+                'mau_contato': self.detectar_mau_contato(janela_sinal, fs),
+                'tremor_muscular': self.detectar_tremor_muscular(janela_sinal, fs),
+                'desconexao': self.detectar_desconexao(janela_sinal, fs),
+                'parametros': self.PARAMS
             }
 
             return dados_cliente

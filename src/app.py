@@ -9,7 +9,8 @@ from .utils.clearTempFiles import clear_upload_directory
 
 from .ecg_analysis.api import app as ecgAnalysis_Routes, get_segments
 from .reportMetrics.api import app as reportMetrics_Routes, get_frequencies_chart, get_metrics
-from .perturbations.api import app as perturbations_Routes, analyze_perturbations
+from .perturbations.api import app as perturbations_Routes, analyze_disturbances
+from .residual.api import app as residual_Routes, analyze_ecg_artifacts
 
 from .utils.xcmConverter import XCMConverter, config
 
@@ -66,9 +67,8 @@ async def analyze_ecg(
   segmentation = await get_segments(UPLOAD_DIR, num_parts, samples_per_part, file_paths)
   frequenciesChart = await get_frequencies_chart()
   metrics = await get_metrics()
-
-  # perturbations = await analyze_perturbations()
-  # removedArtifacts = await get_removedArtifacts()
+  residual = await analyze_ecg_artifacts()
+  disturbances = await analyze_disturbances()
   
   # Limpar o diretório de uploads
   clear_upload_directory(UPLOAD_DIR)
@@ -77,7 +77,8 @@ async def analyze_ecg(
      "segmentation": segmentation,
      "frequenciesChart": frequenciesChart, 
      "metrics": metrics,
-    #  'perturbations': perturbations
+     "residual": residual,
+     "disturbances": disturbances
   }
 
 @app.get("/")

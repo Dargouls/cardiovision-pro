@@ -35,8 +35,8 @@ async def get_frequencies_chart():
 	"""
 
 	try:
+		filename = get_available_records()[0]
 		analyzer = ECGAnalyzer(UPLOAD_DIR)
-		filename = analyzer.get_available_records()[0]
 		results = analyzer.save_complete_analysis(filename)
 
 		return results

@@ -15,7 +15,7 @@ UPLOAD_DIR = './uploads'  # Define a valid directory within your project
 
 # Route to analyze perturbations in ECG
 @app.post("/perturbations")
-async def analyze_perturbations():
+async def analyze_disturbances():
     """
     Endpoint to analyze perturbations and technical issues in ECG records.
     """
@@ -26,12 +26,8 @@ async def analyze_perturbations():
         # Initialize the perturbation analyzer
         analyzer = AnalisadorInterferencia(UPLOAD_DIR)
         
-        # Dictionary to store results for each file
-        results: Dict[str, Dict] = {}
-
         # Perform perturbation analysis
-        analysis_results = analyzer.analisar_interferencias(filename)
-        print(analysis_results)
+        analysis_results = analyzer.analisar_interferencias(filename, duracao=10, canal=0)
         # Clear the upload directory after processing
         clear_upload_directory(UPLOAD_DIR)
 
