@@ -100,6 +100,14 @@ class AnalisadorInterferencia:
         try:
             sinal, fs = self.carregar_sinal(nome_registro, canal)
             janela_sinal = sinal[:int(duracao * fs)]
+            # Variancia local
+            var_local = np.array([np.var(janela_sinal[i:i+100]) for i in range(0, len(janela_sinal)-100)])
+            tempo_var = np.arange(len(var_local)) / fs
+            
+             # Cálculo do histograma
+            histograma, bins = np.histogram(janela_sinal, bins=100, density=True)
+            amplitudes = (bins[:-1] + bins[1:]) / 2  # Valores médios dos bins para o eixo X
+            densidade = histograma.tolist()  # Valores do histograma (densidade) para o eixo Y
 
             # Executa todas as análises
             interferencia_rede, freq, psd = self.detectar_interferencia_rede(janela_sinal, fs)
@@ -112,7 +120,15 @@ class AnalisadorInterferencia:
                 'mau_contato': self.detectar_mau_contato(janela_sinal, fs),
                 'tremor_muscular': self.detectar_tremor_muscular(janela_sinal, fs),
                 'desconexao': self.detectar_desconexao(janela_sinal, fs),
-                'parametros': self.PARAMS
+                'parametros': self.PARAMS,
+                'varianciaLocal': {
+                  'variancia': var_local.tolist(),
+                  'tempo': tempo_var.tolist()
+                },
+                'histograma': {
+                  'amplitudes': amplitudes.tolist(),  # Eixo X
+                  'densidade': densidade  # Eixo Y
+                }
             }
 
             return dados_cliente
