@@ -1,344 +1,173 @@
-import struct
-import numpy as np
-from scipy.signal import butter, filtfilt, find_peaks
-import matplotlib.pyplot as plt
-from dataclasses import dataclass
-from typing import List, Tuple, Dict, Optional, Union
 import os
+import numpy as np
+import wfdb
+from scipy.signal import butter, filtfilt, savgol_filter, find_peaks
+import pywt
 
-
-@dataclass
-class ECGConfig:
-    """Configuration parameters for ECG processing"""
-    sampling_rate: int = 250  # Hz
-    channels: int = 2  # Number of ECG channels
-    format: str = '212'  # WFDB format
-    units: str = 'mV'  # Signal units
-    window_ms: int = 200  # Window size for beat extraction
-    qrs_filter_low: float = 5.0  # Lower cutoff frequency for QRS filter
-    qrs_filter_high: float = 15.0  # Upper cutoff frequency for QRS filter
-    peak_distance_sec: float = 0.6  # Minimum distance between R peaks
-    peak_height_std: float = 2.0  # Peak height threshold in std deviations
-    peak_prominence: float = 0.5  # Minimum peak prominence
-    rr_min: float = 0.2  # Minimum RR interval (seconds)
-    rr_max: float = 2.0  # Maximum RR interval (seconds)
-
-config = ECGConfig(
-	sampling_rate=250,      # Hz
-	channels=2,             # Number of channels
-	window_ms=200,          # Window size for beat extraction
-	qrs_filter_low=5.0,     # Lower cutoff frequency for QRS filter
-	qrs_filter_high=15.0,   # Upper cutoff frequency for QRS filter
-	peak_distance_sec=0.6,  # Minimum distance between peaks
-	peak_height_std=2.0,    # Peak height threshold in std deviations
-	peak_prominence=0.5     # Minimum peak prominence
-)
-
-class SignalReader:
-    @staticmethod
-    def detect_format(file_path: str) -> str:
-        """Auto-detect file format based on extension and content"""
-        ext = os.path.splitext(file_path)[1].lower()
-        if ext == '.xcm':
-            return 'binary32'
-        elif ext in ['.dat', '.212']:
-            return '212'
-        elif ext in ['.csv', '.txt']:
-            return 'text'
-        return 'binary32'  # default
-
-    @staticmethod
-    def read_file(file_path: str, config: ECGConfig) -> np.ndarray:
-        """Read signal data from various file formats"""
-        format_type = SignalReader.detect_format(file_path)
-
-        if format_type == 'binary32':
-            return SignalReader._read_binary32(file_path)
-        elif format_type == '212':
-            return SignalReader._read_212(file_path)
-        elif format_type == 'text':
-            return SignalReader._read_text(file_path)
-
-        raise ValueError(f"Unsupported format: {format_type}")
-
-    @staticmethod
-    def _read_binary32(file_path: str) -> np.ndarray:
-        """Read 32-bit binary data with proper validation"""
+# Função para ler o arquivo .xcm (binário)
+def read_xcm_file(file_path: str, header_size: int = 0, dtype: str = 'int8') -> np.ndarray:
+    """
+    Lê um arquivo .xcm binário e retorna o sinal de ECG como um array numpy.
+    
+    Parâmetros:
+        file_path (str): Caminho do arquivo .xcm.
+        header_size (int): Tamanho do cabeçalho a ser ignorado (em bytes).
+        dtype (str): Tipo de dado para interpretar os bytes (ex: 'int8', 'int16').
+    
+    Retorna:
+        np.ndarray: Sinal de ECG.
+    """
+    try:
         with open(file_path, 'rb') as f:
-            binary_data = f.read()
-
-        # Pre-allocate array for better performance
-        num_samples = len(binary_data) // 4
-        integers = np.zeros(num_samples, dtype=np.int32)
-
-        # Process each 4-byte chunk
-        valid_samples = 0
-        for i in range(0, len(binary_data), 4):
-            chunk = binary_data[i:i + 4]
-            if len(chunk) == 4:
-                try:
-                    value = struct.unpack('<i', chunk)[0]
-                    if -2**31 <= value <= 2**31-1:  # Validate range
-                        integers[valid_samples] = value
-                        valid_samples += 1
-                except struct.error:
-                    continue
-
-        return integers[:valid_samples]
-
-    @staticmethod
-    def _read_212(file_path: str) -> np.ndarray:
-        """Read 212 format data with proper validation"""
-        data = []
-        with open(file_path, 'rb') as f:
-            while True:
-                chunk = f.read(3)
-                if not chunk or len(chunk) < 3:
-                    break
-
-                b1, b2, b3 = chunk
-                # First sample = 12 bits
-                sample1 = (b2 & 0xF0) << 4 | b1
-                if sample1 & 0x800:
-                    sample1 -= 0x1000
-
-                # Second sample = 12 bits
-                sample2 = (b2 & 0x0F) << 8 | b3
-                if sample2 & 0x800:
-                    sample2 -= 0x1000
-
-                data.extend([sample1, sample2])
-
-        return np.array(data)
-
-    @staticmethod
-    def _read_text(file_path: str) -> np.ndarray:
-        """Read text format data (CSV/TXT) with error handling"""
-        try:
-            return np.loadtxt(file_path, delimiter=',')
-        except:
-            return np.loadtxt(file_path)
-
-class SignalProcessor:
-    def __init__(self, signal: np.ndarray, config: ECGConfig):
-        self.signal = signal
-        self.config = config
-
-    def preprocess(self) -> np.ndarray:
-        """Apply all preprocessing steps"""
-        signal = self.remove_baseline()
-        signal = self.normalize(signal)
-        signal = self.filter_noise(signal)
+            raw_data = f.read()
+        if header_size > 0:
+            raw_data = raw_data[header_size:]
+        dtype_size = np.dtype(dtype).itemsize
+        if len(raw_data) % dtype_size != 0:
+            raise ValueError(f"Tamanho do buffer ({len(raw_data)}) não é múltiplo do tamanho do tipo de dado ({dtype_size}).")
+        signal = np.frombuffer(raw_data, dtype=dtype)
         return signal
+    except Exception as e:
+        raise ValueError(f"Erro ao ler o arquivo .xcm: {str(e)}")
 
-    def normalize(self, signal: np.ndarray) -> np.ndarray:
-        """Normalize signal with better handling of outliers"""
-        q1, q3 = np.percentile(self.signal, [25, 75])
-        iqr = q3 - q1
-        valid_mask = (self.signal >= q1 - 3*iqr) & (self.signal <= q3 + 3*iqr)
-        clean_signal = self.signal[valid_mask]
+# Função para pré-processar o sinal (filtro passa-banda e remoção de baseline wander)
+def preprocess_signal(signal: np.ndarray, fs: float, lowcut: float = 0.5, highcut: float = 40.0) -> np.ndarray:
+    """
+    Aplica um filtro passa-banda ao sinal e remove o baseline (desvio médio).
+    
+    Parâmetros:
+        signal (np.ndarray): Sinal de ECG.
+        fs (float): Frequência de amostragem (Hz).
+        lowcut (float): Frequência mínima do filtro passa-banda.
+        highcut (float): Frequência máxima do filtro passa-banda.
+    
+    Retorna:
+        np.ndarray: Sinal filtrado.
+    """
+    nyquist = 0.5 * fs
+    low = lowcut / nyquist
+    high = highcut / nyquist
+    b, a = butter(N=5, Wn=[low, high], btype='band')
+    filtered_signal = filtfilt(b, a, signal)
+    baseline = np.mean(filtered_signal)
+    filtered_signal -= baseline
+    return filtered_signal
 
-        # Calculate normalization parameters from clean signal
-        p1, p99 = np.percentile(clean_signal, [1, 99])
-        normalized = (self.signal - p1) / (p99 - p1)
+# Função para aplicar a transformada de wavelet
+def apply_wavelet_transform(signal: np.ndarray, wavelet: str = 'db4', level: int = 3) -> np.ndarray:
+    """
+    Aplica a transformada de wavelet e reconstrói o sinal.
+    
+    Parâmetros:
+        signal (np.ndarray): Sinal de ECG.
+        wavelet (str): Nome do wavelet a ser utilizado (padrão: 'db4').
+        level (int): Nível de decomposição.
+    
+    Retorna:
+        np.ndarray: Sinal reconstruído a partir da decomposição wavelet.
+    """
+    coeffs = pywt.wavedec(signal, wavelet, level=level)
+    reconstructed_signal = pywt.waverec(coeffs, wavelet)
+    return reconstructed_signal[:len(signal)]  # Garante que o sinal tenha o mesmo comprimento
 
-        return np.clip(normalized * 2 - 1, -1, 1)
+# Função para detectar picos R com método avançado
+def detect_r_peaks_advanced(signal: np.ndarray, fs: float) -> np.ndarray:
+    """
+    Detecta picos R usando um método avançado com limiar adaptativo e validação dos intervalos.
+    
+    Parâmetros:
+        signal (np.ndarray): Sinal de ECG (pré-processado).
+        fs (float): Frequência de amostragem (Hz).
+    
+    Retorna:
+        np.ndarray: Índices dos picos R detectados.
+    """
+    # Suavização do sinal para reduzir ruídos
+    smoothed_signal = savgol_filter(signal, window_length=21, polyorder=3)
+    # Aplicação da transformada de wavelet
+    wavelet_signal = apply_wavelet_transform(smoothed_signal)
+    # Definição de limiar adaptativo
+    mean_signal = np.mean(wavelet_signal)
+    std_signal = np.std(wavelet_signal)
+    threshold = mean_signal + 0.5 * std_signal
+    peaks, properties = find_peaks(wavelet_signal, height=threshold, distance=int(0.6 * fs))
+    
+    # Validação dos picos detectados
+    valid_peaks = []
+    for i in range(len(peaks)):
+        if properties["peak_heights"][i] < threshold:
+            continue
+        if i > 0:
+            rr_interval = (peaks[i] - peaks[i - 1]) / fs * 1000  # em milissegundos
+            if not (400 < rr_interval < 1200):
+                continue
+        if i > 0 and (peaks[i] - peaks[i - 1]) < int(0.3 * fs):
+            continue
+        valid_peaks.append(peaks[i])
+    
+    return np.array(valid_peaks)
 
-    def remove_baseline(self) -> np.ndarray:
-        """Remove baseline wander using polynomial fitting"""
-        polynomial_order = 3
-        x = np.arange(len(self.signal))
-        baseline = np.polyval(
-            np.polyfit(x, self.signal, polynomial_order),
-            x
+# Função para salvar os arquivos WFDB (.dat, .hea e .atr)
+def save_wfdb_files(signal: np.ndarray, r_peaks: np.ndarray, record_name: str, fs: float):
+    """
+    Salva o sinal de ECG e as anotações dos picos R no formato WFDB.
+    
+    Parâmetros:
+        signal (np.ndarray): Sinal de ECG (pré-processado).
+        r_peaks (np.ndarray): Índices dos picos R.
+        record_name (str): Caminho e nome base para os arquivos WFDB (sem extensão e sem ponto).
+        fs (float): Frequência de amostragem (Hz).
+    """
+    try:
+        # Garante que record_name não contenha ponto (removendo a extensão, se houver)
+        record_name_split = os.path.splitext(record_name)[0]
+
+        # Salvar o sinal em arquivos .dat e .hea
+        wfdb.wrsamp(
+            record_name=record_name_split,
+            fs=fs,
+            units=['mV'],
+            sig_name=['ECG'],
+            p_signal=signal.reshape(-1, 1),
+            fmt=['16']
         )
-        return self.signal - baseline
+        
+        # Salvar as anotações dos picos R em arquivo .atr
+        atr_file_path = record_name + ".atr"
+        with open(atr_file_path, "w") as atr_file:
+            for sample in r_peaks:
+                if 0 <= sample < len(signal):
+                    symbol = '+'  # Símbolo padrão para anotação
+                    aux_note = '(N'  # Notação para batimento normal
+                    atr_file.write(f"{sample} {symbol} 0 0 0 {aux_note}\n")
+        print(f"Arquivos WFDB salvos com sucesso na pasta: {os.path.dirname(record_name)}")
+    except Exception as e:
+        raise ValueError(f"Erro ao salvar os arquivos WFDB: {str(e)}")
 
-    def filter_noise(self, signal: np.ndarray) -> np.ndarray:
-        """Apply noise reduction filters"""
-        nyq = self.config.sampling_rate * 0.5
-        low = self.config.qrs_filter_low / nyq
-        high = self.config.qrs_filter_high / nyq
-        b, a = butter(4, [low, high], btype='band')
-        return filtfilt(b, a, signal)
+# Bloco principal
+def converter_xcm(xcm_file_path, output_folder):
+    # Define o nome base para o registro WFDB (incluindo a pasta de saída)
+    record_name = 'ecg-signal'
+    
+    # Parâmetros de conversão
+    fs = 360.0         # Frequência de amostragem (ajuste conforme necessário)
+    header_size = 128  # Tamanho do cabeçalho do arquivo XCM (em bytes)
+    dtype = 'int8'     # Tipo de dado (ajuste conforme o formato do seu arquivo XCM)
+    
+    try:
+        print('Etapa 1: Leitura do arquivo XCM')
+        signal = read_xcm_file(xcm_file_path, header_size=header_size, dtype=dtype)
+        
+        print('Etapa 2: Pré-processamento do sinal')
+        filtered_signal = preprocess_signal(signal, fs)
+        
+        print('Etapa 3: Detecção avançada de picos R')
+        r_peaks = detect_r_peaks_advanced(filtered_signal, fs)
+        
+        print('Etapa 4: Salvamento dos arquivos WFDB (.dat, .hea e .atr)')
+        save_wfdb_files(filtered_signal, r_peaks, record_name, fs)
+        
+        print('Conversão concluida com sucesso!')
 
-class BeatDetector:
-    def __init__(self, signal: np.ndarray, config: ECGConfig):
-        self.signal = signal
-        self.config = config
-
-    def find_beats(self) -> Tuple[np.ndarray, np.ndarray, float]:
-        """Detect beats and calculate heart rate"""
-        peaks = self._detect_peaks()
-        beats = self._extract_beats(peaks)
-        hr = self._calculate_hr(peaks)
-        return beats, peaks, hr
-
-    def _detect_peaks(self) -> np.ndarray:
-        """Detect R peaks with adaptive thresholding"""
-        min_distance = int(self.config.peak_distance_sec * self.config.sampling_rate)
-        height = np.mean(self.signal) + self.config.peak_height_std * np.std(self.signal)
-
-        peaks, _ = find_peaks(
-            self.signal,
-            distance=min_distance,
-            height=height,
-            prominence=self.config.peak_prominence
-        )
-
-        return self._validate_peaks(peaks)
-
-    def _validate_peaks(self, peaks: np.ndarray) -> np.ndarray:
-        """Validate detected peaks using physiological constraints"""
-        if len(peaks) < 2:
-            return peaks
-
-        # Calculate RR intervals
-        rr = np.diff(peaks) / self.config.sampling_rate
-
-        # Remove physiologically impossible intervals
-        valid_rr = (rr >= self.config.rr_min) & (rr <= self.config.rr_max)
-        valid_peaks = peaks[1:][valid_rr]
-
-        # Ensure first peak is included if valid
-        if len(peaks) > 0:
-            first_rr = peaks[0] / self.config.sampling_rate
-            if self.config.rr_min <= first_rr <= self.config.rr_max:
-                valid_peaks = np.concatenate([[peaks[0]], valid_peaks])
-
-        return valid_peaks
-
-    def _extract_beats(self, peaks: np.ndarray) -> np.ndarray:
-        """Extract beat windows around peaks"""
-        half_window = int(self.config.sampling_rate * self.config.window_ms / 2000)
-        beats = []
-
-        for peak in peaks:
-            if peak - half_window >= 0 and peak + half_window < len(self.signal):
-                beat = self.signal[peak - half_window:peak + half_window]
-                if len(beat) == 2 * half_window:
-                    beats.append(beat)
-
-        return np.array(beats)
-
-    def _calculate_hr(self, peaks: np.ndarray) -> float:
-        """Calculate heart rate with outlier removal"""
-        if len(peaks) < 2:
-            return 0
-
-        rr = np.diff(peaks) / self.config.sampling_rate
-        # Remove physiologically impossible intervals
-        valid_rr = rr[(rr >= self.config.rr_min) & (rr <= self.config.rr_max)]
-
-        if len(valid_rr) == 0:
-            return 0
-
-        # Remove statistical outliers from valid intervals
-        rr_filtered = valid_rr[
-            (valid_rr > np.mean(valid_rr) - 2*np.std(valid_rr)) &
-            (valid_rr < np.mean(valid_rr) + 2*np.std(valid_rr))
-        ]
-
-        return 60 / np.mean(rr_filtered) if len(rr_filtered) > 0 else 0
-
-class WFDBWriter:
-    def __init__(self, signal: np.ndarray, config: ECGConfig):
-        self.signal = signal
-        self.config = config
-        self.num_samples = len(signal)
-        self.record_name = "output"
-
-    def save(self, output_prefix: str, peaks: Optional[np.ndarray] = None) -> None:
-        """Save all WFDB format files"""
-        self.record_name = output_prefix
-        self._save_header()
-        self._save_data()
-        if peaks is not None:
-            self._save_annotations(peaks)
-            self._save_xws()
-
-    def _save_header(self) -> None:
-        """Save header file in standard WFDB format"""
-        with open(f"{self.record_name}.hea", 'w') as f:
-            f.write(f"{self.record_name} 1 {self.config.sampling_rate} {self.num_samples}\n")
-            f.write(f"ECG {self.record_name}.dat 212 1/mV 0 0 0 0 ECG\n")
-
-        print("=== Informações do arquivo .hea ===")
-        print("Número de canais: 2")
-        print(f"Taxa de amostragem: {self.config.sampling_rate}")
-        print(f"Número de amostras: {self.num_samples}")
-        print("Formato dos dados: ['212', '212']")
-        print("Nomes dos canais: ['ECG', 'ECG']")
-        print("Unidades dos canais: ['mV', 'mV']")
-
-    def _save_data(self) -> None:
-        """Save signal data in WFDB 212 format"""
-        signal_int = (self.signal * 1000).astype(np.int16)
-
-        with open(f"{self.record_name}.dat", 'wb') as f:
-            for i in range(0, len(signal_int)-1, 2):
-                s1 = signal_int[i]
-                s2 = signal_int[i+1] if i+1 < len(signal_int) else 0
-
-                b1 = s1 & 0xFF
-                b2 = ((s1 >> 8) & 0x0F) | ((s2 << 4) & 0xF0)
-                b3 = (s2 >> 4) & 0xFF
-                f.write(struct.pack('BBB', b1, b2, b3))
-
-        print("\n=== Informações do arquivo .dat ===")
-        print("Os dados do sinal estão armazenados no arquivo .dat.")
-        print("Formato dos dados: ['212', '212']")
-        print(f"Número de amostras: {self.num_samples}")
-        print("Número de canais: 2")
-        print("Exemplo dos primeiros valores do sinal (primeiro canal):")
-        print(self.signal[:10])
-
-    def _save_annotations(self, peaks: np.ndarray) -> None:
-        """Save annotations in standard WFDB format"""
-        with open(f"{self.record_name}.atr", 'w') as f:
-            descriptions = []
-            for i, peak in enumerate(peaks):
-                desc = '(N\x00' if i % 2 == 0 else '(VFL\x00'
-                descriptions.append(desc)
-                f.write(f"{peak} + 0 0 {desc}\n")
-
-        print("\n=== Informações do arquivo .atr ===")
-        print(f"Número de anotações: {len(peaks)}")
-        print("Amostras com anotações:", peaks[:10])
-        print("Tipos de anotações:", ['+'] * 10)
-        print("Descrição dos tipos de anotações:", descriptions[:10])
- 
-    def _save_xws(self) -> None:
-        """Save XWS file in standard format"""
-        content = "-r 418\n-a atr\n-p http://archive.physionet.org/physiobank/database/vfdb/418.xws"
-        with open(f"{self.record_name}.xws", 'w') as f:
-            f.write(content)
-
-        print("\n=== Informações do arquivo .xws ===")
-        print("Conteúdo do arquivo .xws:")
-        print(content)
-
-class XCMConverter:
-    def __init__(self, config: Optional[ECGConfig] = None):
-        self.config = config or ECGConfig()
-
-    def process_file(self, file_path: str) -> Dict:
-        """Process ECG file and return results"""
-        signal = SignalReader.read_file(file_path, self.config)
-        processor = SignalProcessor(signal, self.config)
-        processed_signal = processor.preprocess()
-
-        detector = BeatDetector(processed_signal, self.config)
-        beats, peaks, heart_rate = detector.find_beats()
-
-        writer = WFDBWriter(processed_signal, self.config)
-        writer.save("output", peaks)
-
-        return {
-            'signal': processed_signal,
-            'beats': beats,
-            'peaks': peaks,
-            'heart_rate': heart_rate,
-            'sampling_rate': self.config.sampling_rate,
-            'num_samples': len(processed_signal)
-        }
+    except Exception as e:
+        print(f"Erro durante o processo de conversão: {str(e)}")

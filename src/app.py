@@ -12,7 +12,7 @@ from .reportMetrics.api import app as reportMetrics_Routes, get_frequencies_char
 from .perturbations.api import app as perturbations_Routes, analyze_disturbances
 from .residual.api import app as residual_Routes, analyze_ecg_artifacts
 
-from .utils.xcmConverter import XCMConverter, config
+from .utils.xcmConverter import converter_xcm
 
 from typing import List, Optional
 import os
@@ -26,6 +26,7 @@ logger = logging.getLogger("uvicorn")
 
 # Definir o diretório onde os arquivos serão salvos
 UPLOAD_DIR = "./uploads"  # Defina um diretório válido dentro do seu projeto
+RESULT_DIR = "/result"  # Defina um diretório válido dentro do seu projeto
 
 # Garantir que o diretório de uploads existe
 if not os.path.exists(UPLOAD_DIR):
@@ -60,8 +61,7 @@ async def analyze_ecg(
   # Verificar se a extensão do primeiro arquivo é .xcm
   if file_paths and file_paths[0].endswith('.xcm'):
     file_name = 'output'
-    converter = XCMConverter(config=config)
-    converter.process_file(UPLOAD_DIR+'/'+'1728646157-8nqHdzjoei477swP.xcm')
+    converter_xcm(xcm_file_path=UPLOAD_DIR+'/'+'1728646157-8nqHdzjoei477swP.xcm', output_folder=RESULT_DIR)
   
   # Realizar segmentação, gráficos e métricas
   segmentation = await get_segments(UPLOAD_DIR, num_parts, samples_per_part, file_paths)
@@ -71,14 +71,15 @@ async def analyze_ecg(
   disturbances = await analyze_disturbances()
   
   # Limpar o diretório de uploads
-  clear_upload_directory(UPLOAD_DIR)
+  # clear_upload_directory(UPLOAD_DIR)
   
   return {
      "segmentation": segmentation,
      "frequenciesChart": frequenciesChart, 
      "metrics": metrics,
      "residual": residual,
-     "disturbances": disturbances
+     "disturbances": disturbances,
+    "message": "success"
   }
 
 @app.get("/")

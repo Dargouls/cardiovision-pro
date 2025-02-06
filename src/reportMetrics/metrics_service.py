@@ -318,8 +318,8 @@ class HolterAnalyzer:
           ann_types = np.unique(self.annotations.symbol)
           ann_counts = {t: np.sum(np.array(self.annotations.symbol) == t) for t in ann_types}
           report_data["anotacoes_detalhadas"] = {
-              "tipos_de_batimentos_encontrados": {
-                  ann_type: {
+              "tipos_de_batimentos_encontrados": [
+                  {
                       "label": {
                           'N': 'Normal',
                           'V': 'Ventricular prematuro',
@@ -329,7 +329,7 @@ class HolterAnalyzer:
                       }.get(ann_type, f'Tipo {ann_type}'),
                       "count": numpy_to_python(count)
                   } for ann_type, count in ann_counts.items()
-              }
+              ]
           }
 
       if 'database_url' in self.display_settings:
