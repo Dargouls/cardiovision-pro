@@ -108,7 +108,7 @@ def detect_r_peaks_advanced(signal: np.ndarray, fs: float) -> np.ndarray:
     return np.array(valid_peaks)
 
 # Função para salvar os arquivos WFDB (.dat, .hea e .atr)
-def save_wfdb_files(signal: np.ndarray, r_peaks: np.ndarray, record_name: str, fs: float):
+def save_wfdb_files(signal: np.ndarray, r_peaks: np.ndarray, record_name: str, output_dir: str, fs: float):
     """
     Salva o sinal de ECG e as anotações dos picos R no formato WFDB.
     
@@ -129,11 +129,12 @@ def save_wfdb_files(signal: np.ndarray, r_peaks: np.ndarray, record_name: str, f
             units=['mV'],
             sig_name=['ECG'],
             p_signal=signal.reshape(-1, 1),
+            write_dir=output_dir,
             fmt=['16']
         )
         
         # Salvar as anotações dos picos R em arquivo .atr
-        atr_file_path = record_name + ".atr"
+        atr_file_path = output_dir + "/" +record_name + ".atr"
         with open(atr_file_path, "w") as atr_file:
             for sample in r_peaks:
                 if 0 <= sample < len(signal):
@@ -141,6 +142,7 @@ def save_wfdb_files(signal: np.ndarray, r_peaks: np.ndarray, record_name: str, f
                     aux_note = '(N'  # Notação para batimento normal
                     atr_file.write(f"{sample} {symbol} 0 0 0 {aux_note}\n")
         print(f"Arquivos WFDB salvos com sucesso na pasta: {os.path.dirname(record_name)}")
+        
     except Exception as e:
         raise ValueError(f"Erro ao salvar os arquivos WFDB: {str(e)}")
 
@@ -165,7 +167,7 @@ def converter_xcm(xcm_file_path, output_folder):
         r_peaks = detect_r_peaks_advanced(filtered_signal, fs)
         
         print('Etapa 4: Salvamento dos arquivos WFDB (.dat, .hea e .atr)')
-        save_wfdb_files(filtered_signal, r_peaks, record_name, fs)
+        save_wfdb_files(filtered_signal, r_peaks, record_name, output_folder, fs)
         
         print('Conversão concluida com sucesso!')
 

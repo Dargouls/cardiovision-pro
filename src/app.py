@@ -26,7 +26,7 @@ logger = logging.getLogger("uvicorn")
 
 # Definir o diretório onde os arquivos serão salvos
 UPLOAD_DIR = "./uploads"  # Defina um diretório válido dentro do seu projeto
-RESULT_DIR = "/result"  # Defina um diretório válido dentro do seu projeto
+RESULT_DIR = "./uploads"  # Defina um diretório válido dentro do seu projeto
 
 # Garantir que o diretório de uploads existe
 if not os.path.exists(UPLOAD_DIR):
@@ -55,13 +55,13 @@ async def analyze_ecg(
     samples_per_part: Optional[int] = Form(5000),  # Número de amostras por parte
     files: List[UploadFile] = File(...),  # Arquivos a serem enviados
 ):  
+  clear_upload_directory(UPLOAD_DIR)
   # Salvar arquivos temporariamente
   file_paths = await saveTempFiles(files)
   
   # Verificar se a extensão do primeiro arquivo é .xcm
   if file_paths and file_paths[0].endswith('.xcm'):
-    file_name = 'output'
-    converter_xcm(xcm_file_path=UPLOAD_DIR+'/'+'1728646157-8nqHdzjoei477swP.xcm', output_folder=RESULT_DIR)
+    converter_xcm(xcm_file_path=file_paths[0], output_folder=RESULT_DIR)
   
   # Realizar segmentação, gráficos e métricas
   segmentation = await get_segments(UPLOAD_DIR, num_parts, samples_per_part, file_paths)
@@ -71,7 +71,7 @@ async def analyze_ecg(
   disturbances = await analyze_disturbances()
   
   # Limpar o diretório de uploads
-  # clear_upload_directory(UPLOAD_DIR)
+  clear_upload_directory(UPLOAD_DIR)
   
   return {
      "segmentation": segmentation,

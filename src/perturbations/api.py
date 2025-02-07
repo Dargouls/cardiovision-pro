@@ -28,9 +28,7 @@ async def analyze_disturbances():
         
         # Perform perturbation analysis
         analysis_results = analyzer.analisar_interferencias(filename, duracao=10, canal=0)
-        # Clear the upload directory after processing
-        clear_upload_directory(UPLOAD_DIR)
-
+        
         # Return the results in JSON format
         return {"analyzed_files": analysis_results}
 
