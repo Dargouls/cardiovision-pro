@@ -2,12 +2,9 @@ import os
 
 from .clearTempFiles import clear_upload_directory
 
-UPLOAD_DIR = "./uploads"
-
-async def saveTempFiles(files):
+async def saveTempFiles(UPLOAD_DIR, files):
 # Processar os arquivos recebidos e armazena, retornando ordenado pelo arquivo `.hea`
   file_paths = []
-  clear_upload_directory(UPLOAD_DIR)
 
   for file in files:
       file_path = os.path.join(UPLOAD_DIR, file.filename)

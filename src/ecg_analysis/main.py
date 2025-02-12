@@ -27,53 +27,30 @@ class ECGAnalyzer:
 			self.plotter = ECGPlotter()
 			self.data_manager = ECGDataManager(self.signal_processor)
 	
-	def analyze(self, return_data=False):
+	def analyze(self):
 		"""
-		Realiza análise completa do ECG.
+		Realiza análise completa do ECG e retorna no formato esperado pelo frontend.
 		"""
-		# Calcular métricas usando o primeiro canal
-		# metrics = self.metrics_calculator.calculate_metrics(self.record.p_signal[:, 0])
-
-		# Processar segmentos
-		segments_data = {}
+		segments_data = []
 		for part in range(self.num_parts):
-				start_idx = part * self.part_size
-				end_idx = min(start_idx + self.samples_per_part, self.total_samples)
+			start_idx = part * self.part_size
+			end_idx = min(start_idx + self.samples_per_part, self.total_samples)
 
-				segment_data = self.data_manager.process_segment(
-						self.record.p_signal,
-						start_idx,
-						end_idx,
-						self.record.sig_name
-				)
+			segment_data = self.data_manager.process_segment(
+				self.record.p_signal,
+				start_idx,
+				end_idx,
+				self.record.sig_name
+			)
 
-				# Garantir que os valores em leads_data sejam serializáveis
-				serializable_segment_data = {}
-				for key, value in segment_data.items():
-						if isinstance(value, np.ndarray):  # Se for um array NumPy
-								serializable_segment_data[key] = value.tolist()
-						else:  # Se já for serializável
-								serializable_segment_data[key] = value
-
-				segments_data[f"segment_{part + 1}"] = {
-						"start_time": float(start_idx / ECGConfig.SAMPLE_RATE),
-						"end_time": float(end_idx / ECGConfig.SAMPLE_RATE),
-						"leads_data": serializable_segment_data
-				}
-
-# Processando os dados em segments_data
-		for segment, segment_data in segments_data.items():
-				leads_data = segment_data['leads_data']
-				for key, value in leads_data.items():
-						if isinstance(value, dict):  # Se for um dicionário (como 'ECG')
-								for sub_key, sub_value in value.items():
-										# Transformando arrays NumPy em listas nativas
-										value[sub_key] = convert_numpy_to_native(sub_value)
-										
-						else:
-								# Se o valor não for um dicionário, apenas converta o valor
-								leads_data[key] = convert_numpy_to_native(value)
-
+			segments_data.append({
+				"startTime": float(start_idx / ECGConfig.SAMPLE_RATE),
+				"endTime": float(end_idx / ECGConfig.SAMPLE_RATE),
+				"signal": convert_numpy_to_native(segment_data["ECG"]["signal"]),
+				"rPeaks": convert_numpy_to_native(segment_data["ECG"]["r_peaks"]),
+				"samplingRate": ECGConfig.SAMPLE_RATE,
+			})
+		
 		return segments_data
 
 	def analyze_img(self):
