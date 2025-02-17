@@ -9,6 +9,7 @@ from .ecg_analysis.api import app as ecgAnalysis_Routes, get_segments
 from .reportMetrics.api import app as reportMetrics_Routes, get_frequencies_chart, get_metrics
 from .perturbations.api import app as perturbations_Routes, analyze_disturbances
 from .residual.api import app as residual_Routes, analyze_ecg_artifacts
+from .metrics.api import app as metrics_Routes, get_newmetrics
 
 from .utils.xcmConverter import converter_xcm
 
@@ -61,11 +62,12 @@ async def analyze_ecg(
         get_frequencies_chart(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id),
         get_metrics(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id),
         analyze_ecg_artifacts(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id),
-        analyze_disturbances(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id)
+        analyze_disturbances(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id),
+        get_newmetrics(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id),
     )
 
     # Desempacotando os resultados
-    segmentation, frequenciesChart, metrics, residual, disturbances = results
+    segmentation, frequenciesChart, metrics, residual, disturbances, newmetrics = results
 
     return {
       "message": "Análise concluída com sucesso",
@@ -74,6 +76,7 @@ async def analyze_ecg(
       "metrics": metrics,
       "residual": residual,
       "disturbances": disturbances,
+      "newmetrics": newmetrics
     }
 
 @app.get("/")
