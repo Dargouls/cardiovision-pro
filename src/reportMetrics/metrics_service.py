@@ -7,9 +7,6 @@ import json
 import os
 from pathlib import Path
 
-UPLOAD_FOLDER = './uploads'
-RESULTS_FOLDER = './results'
-
 CONFIG = {
     'qrs': {
         'filter': [5, 15],          
@@ -91,8 +88,6 @@ class HolterAnalyzer:
                                 base_url = 'http:' + base_url
                             base_url = base_url.replace('.xws', '')
                             self.display_settings = {
-                                'database_url': base_url,
-                                'record_id': os.path.basename(self.record_path),
                                 'record_info': {
                                     'database': 'vfdb',
                                     'format': 'MIT-BIH',
@@ -332,12 +327,6 @@ class HolterAnalyzer:
               ]
           }
 
-      if 'database_url' in self.display_settings:
-          report_data["informacoes_adicionais"] = {
-              "url_do_registro": self.display_settings['database_url'],
-              "id_do_registro": self.display_settings.get('record_id', 'N/A')
-          }
-
       return report_data
   
     def save_complete_analysis(self, record_path):
@@ -361,7 +350,6 @@ class HolterAnalyzer:
                 'formatted_report': report,
                 'analysis_time': datetime.now().isoformat(),
                 'record_info': {
-                    'path': str(record_path),
                     'files': {
                         'hea': os.path.exists(record_path + '.hea'),
                         'dat': os.path.exists(record_path + '.dat'),
@@ -422,18 +410,7 @@ def save_complete_analysis(record_path):
                 'duration_seconds': numpy_to_python(analyzer.record.sig_len / analyzer.record.fs)
             }
         }
-        print('complete_data')
-        
-        # Salva em JSON
-        output_file = Path(RESULTS_FOLDER) / f"{os.path.basename(record_path)}_complete_analysis.json"
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(complete_data, f, indent=2, ensure_ascii=False)
-        
-        # Também exibe o relatório formatado
-        print("\nRELATÓRIO FORMATADO:")
-        print("="*50)
-        print(report)
-        
+
         return complete_data
         
     except Exception as e:

@@ -27,18 +27,15 @@ async def analyze_ecg_artifacts(
     """
     try:
         # Get available files in the upload directory
-        available_records = get_available_records(UPLOAD_DIR)
+        available_records = get_available_records(UPLOAD_DIR)[0]
         if not available_records:
             raise HTTPException(status_code=404, detail="No ECG records found in the upload directory.")
-        
-        # Use the first available record for analysis
-        record_name = available_records[0]
         
         # Initialize the ECG analyzer
         analyzer = ECGAnalyzer(UPLOAD_DIR)
         
         # Perform ECG analysis
-        results = analyzer.analyze_ecg(record_name)
+        results = analyzer.analyze_ecg(available_records)
         
         if not results:
             raise HTTPException(status_code=500, detail="Error analyzing ECG residual.")

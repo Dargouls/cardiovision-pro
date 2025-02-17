@@ -54,14 +54,14 @@ async def analyze_ecg(
     
     # Verificar se a extensão do primeiro arquivo é .xcm
     if file_paths and file_paths[0].endswith('.xcm'):
-      converter_xcm(xcm_file_path=file_paths[0], output_folder=RESULT_DIR)
+      converter_xcm(xcm_file_path=file_paths[0], output_folder=temp_dir)
     
     results = await asyncio.gather(
         get_segments(upload_dir=temp_dir, user_id=user_id, study_id=study_id, num_parts=num_parts, samples_per_part=samples_per_part, file_paths=file_paths),
-        get_frequencies_chart(temp_dir, user_id=user_id, study_id=study_id),
-        get_metrics(temp_dir, user_id=user_id, study_id=study_id),
-        analyze_ecg_artifacts(temp_dir, user_id=user_id, study_id=study_id),
-        analyze_disturbances(temp_dir, user_id=user_id, study_id=study_id)
+        get_frequencies_chart(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id),
+        get_metrics(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id),
+        analyze_ecg_artifacts(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id),
+        analyze_disturbances(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id)
     )
 
     # Desempacotando os resultados
