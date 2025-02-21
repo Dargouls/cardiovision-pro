@@ -68,7 +68,6 @@ class HolterAnalyzer:
         # Carrega anotações (.atr)
         try:
           self.annotations = wfdb.rdann(self.record_path, 'atr')
-          print("Arquivo .atr carregado com sucesso")
         except Exception as e:
           print(f"Aviso: Não foi possível carregar arquivo .atr: {str(e)}")
         
@@ -98,11 +97,9 @@ class HolterAnalyzer:
                                     'base_date': self.record.base_date if hasattr(self.record, 'base_date') else None
                                 }
                             }
-                            print(f"Informações do registro extraídas da URL do .xws: {base_url}")
                         else:
                             try:
                                 self.display_settings = json.loads(content)
-                                print("Arquivo .xws carregado como JSON")
                             except json.JSONDecodeError:
                                 settings = {}
                                 for line in content.split('\n'):
@@ -115,7 +112,6 @@ class HolterAnalyzer:
                                         settings[key.strip()] = value.strip()
                                 
                                 self.display_settings = settings
-                                print(f"Arquivo .xws carregado como texto estruturado: {settings}")
                     else:
                         print("Arquivo .xws está vazio")
             except Exception as e:
@@ -179,13 +175,10 @@ class HolterAnalyzer:
             (hr <= CONFIG['hr']['limits'][1])
         ]
         
-        
-        print("Estatísticas RR...", valid_rr)
         # Estatísticas RR
         mean_rr = np.median(valid_rr)
         rr_mad = np.median(np.abs(valid_rr - mean_rr))
         
-        print("Detecção de arritmias...", fs)
         # Detecção de arritmias
         if self.annotations is not None:
             vent_idx = np.where(np.isin(self.annotations.symbol, ['V']))[0]
@@ -379,16 +372,13 @@ def save_complete_analysis(record_path):
     Args:
         record_path (str): Caminho para o registro ECG
     """
-    print(f'init {record_path}')
     try:
         # Realiza a análise
         analyzer = HolterAnalyzer(record_path)
         metrics = analyzer.analyze_holter()
         
-        print('analyzer init')
         # Gera o relatório formatado
         report = analyzer.format_report(metrics)
-        print('report')
         
         # Cria o dicionário completo para JSON
         complete_data = {

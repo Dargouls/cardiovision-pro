@@ -103,8 +103,6 @@ def analyze_ecg(record_path, num_parts=24, samples_per_part=5000):
     """
     Função principal para análise de ECG.
     """
-    print('record_path: ', record_path)
     record = wfdb.rdrecord(record_path)
     analyzer = ECGAnalyzer(record, num_parts, samples_per_part)
     analyzer.analyze()
-    print("Análise completa. Arquivos salvos:")

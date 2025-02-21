@@ -152,8 +152,7 @@ class AnalisadorECG:
             if arquivo.endswith('.hea'):
                 caminho_registro = os.path.join(self.caminho_diretorio, arquivo[:-4])
                 registros.append(caminho_registro)
-        print(f"Encontrados {len(registros)} registros no diretório.")
-
+                
         for caminho_registro in registros:
             try:
                 registro = wfdb.rdrecord(caminho_registro)
@@ -283,7 +282,7 @@ class AnalisadorECG:
                 'formato': None,
                 'frequencia_amostragem': first_info['fs'],
                 'numero_de_canais': first_info['n_sinais'],
-                'duracao_total': dur_format,
+                'duracao_total': dur_sec,
                 'numero_de_amostras': first_info['n_amostras']
             },
             'arquivos_utilizados': files,

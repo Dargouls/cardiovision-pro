@@ -46,13 +46,11 @@ class ECGAnalyzer:
         """Load an ECG record and its annotations."""
         try:
             record_path = self.base_path / record_name
-            print('record_path: ', record_path)
-            
+
             record = wfdb.rdrecord(str(record_path))
             
             try:
                 ann = wfdb.rdann(str(record_path), 'atr')
-                print("Annotations loaded successfully")
             except Exception as e:
                 print(f"Warning: Could not load annotations: {str(e)}")
                 ann = None
@@ -95,8 +93,7 @@ class ECGAnalyzer:
               'channel': channel,
               'n_samples': int(len(signal))
           }
-          print('result_data: ', result_data['record_info'])  # Corrected this line
-          
+
           # Save annotations if available
           if annotations:
               result_data['annotations'] = {
@@ -147,7 +144,6 @@ class ECGAnalyzer:
 
           # Convert all numpy types before JSON serialization
           result_data = self._convert_numpy_types(result_data)
-          print('result_data: ', result_data)
 
           return result_data
 
