@@ -73,20 +73,27 @@ class ECGAnalyzer:
             return [self._convert_numpy_types(item) for item in obj]
         return obj
 
-    def analyze_ecg(self, record_name, duration=10, channel=0):
+    
+    def analyze_ecg(self, record_name, duration=10, channel=0, desired_frequency=None, period=None):
       result_data = {
           'record_name': record_name,
           'analysis_time': datetime.datetime.now().isoformat(),
           'record_info': {},
-          'signals': {},
           'annotations': {},
-          'sampling_rates': []  # Alterado para ser uma lista
+          'sampling_rates': []
       }
       try:
-          # Load the signal and annotations
+          # Carregar o sinal e as anotações
           signal, fs, annotations = self.load_record(record_name, channel)
           
-          # Save basic record info
+          # Validar frequências
+          if desired_frequency is not None:
+              if fs <= 0:
+                  raise ValueError("Frequência de amostragem original deve ser positiva.")
+              if desired_frequency <= 0:
+                  raise ValueError("Frequência desejada deve ser positiva.")
+          
+          # Informações básicas do registro
           result_data['record_info'] = {
               'sampling_frequency': int(fs),
               'duration': float(len(signal) / fs),
@@ -94,92 +101,113 @@ class ECGAnalyzer:
               'n_samples': int(len(signal))
           }
 
-          # Save annotations if available
+          # Anotações
           if annotations:
               result_data['annotations'] = {
                   'sample_points': [int(x) for x in annotations.sample]
               }
 
-          # Define periods to analyze
-          periods = {
-              'Start': 0,
-              'Mid': len(signal) // 2,
-              'End': len(signal) - duration * fs
-          }
-
-          # Save data for each period
-          for name, start in periods.items():
-              segment = signal[start:start + duration * fs]
-              time = np.arange(len(segment)) / fs
-
-              result_data['signals'][name] = {
-                  'start_index': int(start),
-                  'duration': duration,
-                  'data': segment.tolist()
+          # Definir períodos com base no parâmetro 'period'
+          if period is not None:
+              period = period.lower()
+              allowed_periods = ['start', 'mid', 'end']
+              if period not in allowed_periods:
+                  raise ValueError(f"Período inválido: '{period}'. Valores permitidos: {allowed_periods}.")
+              
+              # Calcular início do período solicitado
+              if period == 'start':
+                  start_idx = 0
+              elif period == 'mid':
+                  start_idx = len(signal) // 2
+              else:  # 'end'
+                  start_idx = max(0, len(signal) - int(duration * fs))
+              
+              periods = {period.capitalize(): start_idx}
+          else:
+              # Períodos originais (start, mid, end)
+              periods = {
+                  'Start': 0,
+                  'Mid': len(signal) // 2,
+                  'End': max(0, len(signal) - int(duration * fs))
               }
 
-              # Get annotations for this segment
+          # Processar cada período definido
+          for name, start in periods.items():
+              start = int(start)
+              start = max(0, start)  # Garantir que não seja negativo
+              end = start + int(duration * fs)
+              end = min(end, len(signal))  # Não ultrapassar o fim do sinal
+              
+              segment = signal[start:end]
+              original_duration = len(segment) / fs
+
+              # Anotações no segmento
               if annotations:
                   segment_anns = [
                       (int(ann_time), ann_label)
                       for ann_time, ann_label in zip(annotations.sample, annotations.symbol)
-                      if start <= ann_time < start + duration * fs
+                      if start <= ann_time < end
                   ]
                   result_data['annotations'][name] = {
                       'times': [t for t, _ in segment_anns],
                       'labels': [l for _, l in segment_anns]
                   }
 
-              for rate in [1.0, 0.5, 0.25, 0.125, 0.0625]:
-                  factor = int(1 / rate)
-
-                  # Adiciona os dados como um objeto na lista de sampling_rates
+              # Reamostrar para a frequência desejada
+              if desired_frequency is not None:
+                  new_num_samples = int(original_duration * desired_frequency)
+                  if new_num_samples == 0:
+                      resampled_data = []
+                      new_time = []
+                  else:
+                      original_time = np.arange(len(segment)) / fs
+                      new_time = np.linspace(0, original_duration, new_num_samples, endpoint=False)
+                      resampled_data = np.interp(new_time, original_time, segment)
+                  
                   result_data['sampling_rates'].append({
-                      'period': name.lower(),  # Nome do período em minúsculo
-                      'rate': float(rate),
-                      'frequency': int(fs * rate),
-                      'data': segment[::factor].tolist(),
-                      'time': time[::factor].tolist()
+                      'period': name.lower(),
+                      'rate': desired_frequency / fs,
+                      'frequency': desired_frequency,
+                      'data': resampled_data.tolist(),
+                      'time': new_time.tolist()
                   })
+              else:
+                  # Taxas padrão (1.0, 0.5, etc.)
+                  for rate in [1.0, 0.5, 0.25, 0.125, 0.0625]:
+                      factor = int(1 / rate)
+                      downsampled_data = segment[::factor]
+                      downsampled_time = (np.arange(len(downsampled_data)) * (1 / (fs * rate))).tolist()
+                      
+                      result_data['sampling_rates'].append({
+                          'period': name.lower(),
+                          'rate': float(rate),
+                          'frequency': int(fs * rate),
+                          'data': downsampled_data.tolist(),
+                          'time': downsampled_time
+                      })
 
-          # Convert all numpy types before JSON serialization
+          # Converter tipos numpy para Python
           result_data = self._convert_numpy_types(result_data)
-
           return result_data
 
       except Exception as e:
-          print(f"Error analyzing ECG: {str(e)}")
+          print(f"Erro na análise do ECG: {str(e)}")
           return None
-
-
-    def save_complete_analysis(self, record_name):
-      analysis_data = self.analyze_ecg(record_name)
-      if analysis_data:
-        return analysis_data
-        
-      return False
+    
+    def save_complete_analysis(self, record_name, desired_frequency=None, period=None):
+      analysis_data = self.analyze_ecg(record_name, desired_frequency=desired_frequency, period=period)
+      return analysis_data if analysis_data else False
 
     def get_available_records(self):
-        """Get a list of available record names."""
+        """Listar registros disponíveis."""
         try:
             records = []
             for hea_file in self.base_path.glob('*.hea'):
                 record_name = hea_file.stem
                 dat_file = hea_file.with_suffix('.dat')
-                
                 if dat_file.exists():
                     records.append(record_name)
-                    
-                    atr_file = hea_file.with_suffix('.atr')
-                    xws_file = hea_file.with_suffix('.xws')
-                    
-                    print(f"Record {record_name}:")
-                    print(f"  .hea: Present")
-                    print(f"  .dat: Present")
-                    print(f"  .atr: {'Present' if atr_file.exists() else 'Missing'}")
-                    print(f"  .xws: {'Present' if xws_file.exists() else 'Missing'}")
-
             return records
         except Exception as e:
-            print(f"Error listing records: {str(e)}")
+            print(f"Erro ao listar registros: {str(e)}")
             return []

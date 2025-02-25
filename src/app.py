@@ -46,7 +46,7 @@ app.include_router(metadata_Routes)
 @app.post("/analyze_ecg")
 async def analyze_ecg(
     num_parts: Optional[int] = Form(2),  # Número de partes
-    samples_per_part: Optional[int] = Form(5000),  # Número de amostras por parte
+    paper_speed: Optional[int] = Form(25),  # Número de amostras por parte
     files: List[UploadFile] = File(...),  # Arquivos a serem enviados
     user_id: Optional[str] = Form(...),
     study_id: Optional[str] = Form(...),
@@ -60,7 +60,7 @@ async def analyze_ecg(
       converter_xcm(xcm_file_path=file_paths[0], output_folder=temp_dir)
     
     results = await asyncio.gather(
-        get_segments(upload_dir=temp_dir, user_id=user_id, study_id=study_id, num_parts=num_parts, samples_per_part=samples_per_part, file_paths=file_paths),
+        get_segments(upload_dir=temp_dir, user_id=user_id, study_id=study_id, num_parts=num_parts, paper_speed=paper_speed, file_paths=file_paths),
         get_frequencies_chart(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id),
         get_metrics(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id),
         analyze_ecg_artifacts(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id),

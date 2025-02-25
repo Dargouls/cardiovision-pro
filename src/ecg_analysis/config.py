@@ -4,6 +4,7 @@ class ECGConfig:
     Configurações globais para análise de ECG.
     """
     SAMPLE_RATE = 250  # Taxa de amostragem padrão
+    MMM_PER_SEC = 25    # Valor padrão (25 ou 50 mm/s)
     FILTER_LOW_PASS = 40  # Frequência de corte do filtro passa-baixa
     FILTER_HIGH_PASS = 0.5  # Frequência de corte do filtro passa-alta
     QRS_MIN_DISTANCE = 0.2  # Distância mínima entre picos R (em segundos)
