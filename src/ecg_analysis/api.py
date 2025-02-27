@@ -82,31 +82,26 @@ async def get_segments(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/reanalyze_segmentation")
+@app.post("/update_segmentation")
 async def reanalyze_segments(
-    study_id: Optional[str] = Form(...),
-    user_id: Optional[str] = Form(...),
     num_parts: Optional[int] = Form(4),         # Número de partes
-    paper_speed: Optional[int] = Form(5000),  # Número de amostras por parte
+    samples_per_part: Optional[int] = Form(5000),  # Número de amostras por parte
+    frequency: Optional[int] = Form(None),
     files: List[UploadFile] = File(...),           # Arquivos a serem enviados
 ):
     try:
         # Cria um diretório temporário exclusivo para esta requisição
         with tempfile.TemporaryDirectory() as tmp_dir:
-            # Salva cada arquivo enviado no diretório temporário
-            for upload in files:
-                file_path = os.path.join(tmp_dir, upload.filename)
-                with open(file_path, "wb") as f:
-                    content = await upload.read()
-                    f.write(content)
+            await saveTempFiles(tmp_dir, files)
             
             # Utiliza a função get_available_records para identificar os registros disponíveis
-            available_records = get_available_records(Path(tmp_dir))
-            if not available_records:
+            filename = get_available_records(Path(tmp_dir))[0]
+            if not filename:
                 raise HTTPException(status_code=400, detail="Nenhum registro WFDB encontrado no diretório temporário.")
             
+            print(filename, num_parts,samples_per_part, frequency)
             # Seleciona o primeiro registro disponível; se houver mais de um, pode-se implementar lógica adicional
-            record_base = os.path.join(tmp_dir, available_records[0])
+            record_base = os.path.join(tmp_dir, filename)
             
             try:
                 # wfdb.rdrecord procura arquivos com o mesmo prefixo (ex.: .hea, .dat, .atr)
@@ -116,14 +111,12 @@ async def reanalyze_segments(
                 raise HTTPException(status_code=500, detail="Erro ao carregar o arquivo WFDB.")
             
             # Cria a instância do analisador e executa a análise
-            analyzer = ECGAnalyzer(record, num_parts, paper_speed)
+            analyzer = ECGAnalyzer(record, num_parts, samples_per_part, frequency)
+            print('análise')
             segments_data = analyzer.analyze()
             
-            return {
-                "segments": segments_data,
-                "user_id": user_id,
-                "study_id": study_id
-            }
+            return segments_data
         # Ao sair do bloco 'with', o diretório temporário e seus arquivos são removidos automaticamente.
     except Exception as e:
+        print(f"Erro ao processar a requisição: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
