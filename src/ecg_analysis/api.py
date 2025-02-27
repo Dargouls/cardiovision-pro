@@ -29,7 +29,7 @@ async def get_segments(
     user_id: str = Form(...),
     upload_dir: str = Form(...),
     num_parts: Optional[int] = Form(4),         # Número de partes
-    paper_speed: Optional[int] = Form(25),  # Número de amostras por parte
+    samples_per_part: Optional[int] = Form(5000),  # Número de amostras por parte
     file_paths: List[str] = Form([]),
 ):
     try:
@@ -47,7 +47,7 @@ async def get_segments(
             raise HTTPException(status_code=500, detail="Erro ao carregar o arquivo WFDB.")
 
         # Instanciar o analisador e executar a análise
-        analyzer = ECGAnalyzer(record, 3, 500)
+        analyzer = ECGAnalyzer(record, num_parts, samples_per_part)
         segments_data = analyzer.analyze()
 
         # Criar um arquivo JSON temporário com os dados de segmentação
