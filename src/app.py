@@ -11,6 +11,7 @@ from .perturbations.api import app as perturbations_Routes, analyze_disturbances
 from .residual.api import app as residual_Routes, analyze_ecg_artifacts
 from .metrics.api import app as metrics_Routes, get_newmetrics
 from .metadata.api import app as metadata_Routes
+from .events.api import app as events_Routes, get_events
 
 from .utils.xcmConverter import converter_xcm
 
@@ -42,6 +43,9 @@ app.include_router(reportMetrics_Routes)
 app.include_router(ecgAnalysis_Routes)
 app.include_router(perturbations_Routes)
 app.include_router(metadata_Routes)
+app.include_router(residual_Routes)
+app.include_router(metrics_Routes)
+app.include_router(events_Routes)
 
 @app.post("/analyze_ecg")
 async def analyze_ecg(
@@ -66,6 +70,7 @@ async def analyze_ecg(
         analyze_ecg_artifacts(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id),
         analyze_disturbances(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id),
         get_newmetrics(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id),
+        get_events(UPLOAD_DIR=temp_dir, user_id=user_id, study_id=study_id)
     )
 
     # Desempacotando os resultados
