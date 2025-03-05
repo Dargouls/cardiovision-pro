@@ -1,12 +1,13 @@
 import wfdb
 import numpy as np
-import matplotlib.pyplot as plt
-from pathlib import Path
-import json
-import base64
-from io import BytesIO
-import datetime
 from scipy.signal import savgol_filter  # Para suavização do sinal
+
+from pathlib import Path
+
+import json
+import datetime
+
+from ..utils.copyWfdb import copy_record
 
 class ECGAnalyzer:
     PARAMS = {
@@ -43,11 +44,11 @@ class ECGAnalyzer:
             except Exception as e:
                 print(f"Warning: Could not load display settings from {xws_file}: {str(e)}")
 
-    def load_record(self, record_name):
+    async def load_record(self, record_name):
         """Load an ECG record and its annotations."""
         try:
             record_path = self.base_path / record_name
-            record = wfdb.rdrecord(str(record_path))
+            record = await copy_record(record_path)
 
             try:
                 ann = wfdb.rdann(str(record_path), 'atr')
@@ -73,7 +74,7 @@ class ECGAnalyzer:
         elif isinstance(obj, list):
             return [self._convert_numpy_types(item) for item in obj]
         return obj
-    def analyze_ecg(self, record_name, segment_duration=10):
+    async def analyze_ecg(self, record_name, segment_duration=10):
       result_data = {
           'record_name': record_name,
           'analysis_time': datetime.datetime.now().isoformat(),
@@ -89,7 +90,7 @@ class ECGAnalyzer:
 
       try:
           # Load the signal and annotations
-          signals, fs, annotations = self.load_record(record_name)
+          signals, fs, annotations = await self.load_record(record_name)
           n_channels = signals.shape[1]
           total_samples = len(signals)
 
@@ -181,13 +182,13 @@ class ECGAnalyzer:
           return result_data
 
       except Exception as e:
-          print(f"Error analyzing ECG: {str(e)}")
+          print(f"Error analyzing residual: {str(e)}")
           return None
 
 
-    def save_complete_analysis(self, record_name):
+    async def save_complete_analysis(self, record_name):
         """Save complete analysis including signal data, annotations and visualizations."""
-        analysis_data = self.analyze_ecg(record_name)
+        analysis_data = await self.analyze_ecg(record_name)
         if analysis_data:
             print(f"Complete analysis saved successfully for record {record_name}")
             return True

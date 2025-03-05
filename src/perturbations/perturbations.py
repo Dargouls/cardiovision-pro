@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from scipy.signal import welch
 
+from ..utils.copyWfdb import copy_record
 class AnalisadorInterferencia:
     PARAMS = {
         'interferencia_rede': {
@@ -32,10 +33,10 @@ class AnalisadorInterferencia:
     def __init__(self, caminho_base):
         self.caminho_base = Path(caminho_base)
 
-    def carregar_sinal(self, nome_registro, canal=0):
+    async def carregar_sinal(self, nome_registro, canal=0):
         try:
             caminho_registro = self.caminho_base / nome_registro
-            registro = wfdb.rdrecord(str(caminho_registro))
+            registro = await copy_record(caminho_registro)
             return registro.p_signal[:, canal], registro.fs
         except Exception as e:
             raise ValueError(f"Erro ao carregar registro: {str(e)}")
@@ -96,9 +97,9 @@ class AnalisadorInterferencia:
                     })
         return grupos
 
-    def analisar_interferencias(self, nome_registro, duracao=10, canal=0):
+    async def analisar_interferencias(self, nome_registro, duracao=10, canal=0):
         try:
-            sinal, fs = self.carregar_sinal(nome_registro, canal)
+            sinal, fs = await self.carregar_sinal(nome_registro, canal)
             janela_sinal = sinal[:int(duracao * fs)]
             # Variancia local
             var_local = np.array([np.var(janela_sinal[i:i+100]) for i in range(0, len(janela_sinal)-100)])

@@ -57,8 +57,6 @@ async def get_metrics(
 @app.post("/frequencies_chart")
 async def get_frequencies_chart(
   UPLOAD_DIR: str,
-	study_id: str = Form(...),
-	user_id: str = Form(...),
 	frequency: str = Form(...),
 ):
 	"""
@@ -68,28 +66,9 @@ async def get_frequencies_chart(
 	try:
 		filename = get_available_records(UPLOAD_DIR)[0]
 		analyzer = ECGAnalyzer(UPLOAD_DIR)
-		results = analyzer.save_complete_analysis(filename, int(frequency))
+		results = await analyzer.save_complete_analysis(filename, int(frequency))
 
-		with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json", encoding="utf-8") as temp_file:
-			json.dump(results, temp_file)
-			temp_file_path = temp_file.name
-
-    # Enviar o arquivo JSON via multipart/form-data para o gateway
-		async with httpx.AsyncClient() as client:
-			with open(temp_file_path, "rb") as json_file:
-					files = {
-							"study_id": (None, study_id),
-							"user_id": (None, user_id),
-							"module": (None, "frequencies"),
-							"files": ("frequenciesCharts.json", json_file, "application/json"),
-					}
-					gateway_response = await client.post(f"{GATEWAY_URL}/save-module", files=files)
-					gateway_response.raise_for_status()
-					gateway_result = gateway_response.json()  # Ex.: { "message": "Dados recebidos com sucesso" }
-    
-		os.remove(temp_file_path)
-
-		return {"frequencies": "OK"}
+		return results
 	
 	except FileNotFoundError:
 		raise HTTPException(status_code=404, detail="Registro não encontrado.")
@@ -100,7 +79,7 @@ import os
 from pathlib import Path
 
 @app.post("/update_frequencies_charts")
-async def get_frequencies_chart(
+async def update_frequencies_chart(
   files: list[UploadFile] = File(...),
   frequency: str = Form(...),
 	period: Optional[str] = Form(None),

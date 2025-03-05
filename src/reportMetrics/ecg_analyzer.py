@@ -7,8 +7,7 @@ import base64
 from io import BytesIO
 import datetime
 
-UPLOAD_FOLDER = './uploads'
-RESULTS_FOLDER = './results'
+from ..utils.copyWfdb import copy_record
 
 class ECGAnalyzer:
     PARAMS = {
@@ -42,12 +41,12 @@ class ECGAnalyzer:
             except Exception as e:
                 print(f"Warning: Could not load display settings from {xws_file}: {str(e)}")
 
-    def load_record(self, record_name, channel=0):
+    async def load_record(self, record_name, channel=0):
         """Load an ECG record and its annotations."""
         try:
             record_path = self.base_path / record_name
 
-            record = wfdb.rdrecord(str(record_path))
+            record = await copy_record(record_path)
             
             try:
                 ann = wfdb.rdann(str(record_path), 'atr')
@@ -74,7 +73,7 @@ class ECGAnalyzer:
         return obj
 
     
-    def analyze_ecg(self, record_name, duration=10, channel=0, desired_frequency=None, period=None):
+    async def analyze_ecg(self, record_name, duration=10, channel=0, desired_frequency=None, period=None):
       result_data = {
           'record_name': record_name,
           'analysis_time': datetime.datetime.now().isoformat(),
@@ -84,7 +83,7 @@ class ECGAnalyzer:
       }
       try:
           # Carregar o sinal e as anotações
-          signal, fs, annotations = self.load_record(record_name, channel)
+          signal, fs, annotations = await self.load_record(record_name, channel)
           
           # Validar frequências
           if desired_frequency is not None:
@@ -191,11 +190,11 @@ class ECGAnalyzer:
           return result_data
 
       except Exception as e:
-          print(f"Erro na análise do ECG: {str(e)}")
+          print(f"Erro na análise de frequências: {str(e)}")
           return None
     
-    def save_complete_analysis(self, record_name, desired_frequency=None, period=None):
-      analysis_data = self.analyze_ecg(record_name, desired_frequency=desired_frequency, period=period)
+    async def save_complete_analysis(self, record_name, desired_frequency=None, period=None):
+      analysis_data = await self.analyze_ecg(record_name, desired_frequency=desired_frequency, period=period)
       return analysis_data if analysis_data else False
 
     def get_available_records(self):

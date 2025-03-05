@@ -9,6 +9,8 @@ import wfdb
 from scipy import stats
 from scipy.signal import find_peaks, welch, butter, filtfilt
 
+from ..utils.copyWfdb import copy_record
+
 class AnalisadorECG:
     """
     Classe para análise de sinais ECG com detecção de picos R aprimorada e cálculo de métricas de Holter.
@@ -146,7 +148,7 @@ class AnalisadorECG:
         }
         return estatisticas
 
-    def analisar_diretorio(self):
+    async def analisar_diretorio(self):
         registros = []
         for arquivo in os.listdir(self.caminho_diretorio):
             if arquivo.endswith('.hea'):
@@ -155,7 +157,7 @@ class AnalisadorECG:
                 
         for caminho_registro in registros:
             try:
-                registro = wfdb.rdrecord(caminho_registro)
+                registro = await copy_record(caminho_registro)
                 nome_registro = os.path.basename(caminho_registro)
                 info_registro = {
                     'nome_registro': nome_registro,

@@ -18,9 +18,7 @@ app = APIRouter()
 # Route to analyze ECG artifacts
 @app.post("/analyze-ecg-artifacts")
 async def analyze_ecg_artifacts(
-  UPLOAD_DIR: str,
-  study_id: str = Form(...),
-  user_id: str = Form(...),
+  UPLOAD_DIR: str
 ):
     """
     Endpoint to analyze ECG artifacts and generate visualizations.
@@ -35,31 +33,12 @@ async def analyze_ecg_artifacts(
         analyzer = ECGAnalyzer(UPLOAD_DIR)
         
         # Perform ECG analysis
-        results = analyzer.analyze_ecg(available_records)
+        results = await analyzer.analyze_ecg(available_records)
         
         if not results:
             raise HTTPException(status_code=500, detail="Error analyzing ECG residual.")
-        
-        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json", encoding="utf-8") as temp_file:
-          json.dump(results, temp_file)
-          temp_file_path = temp_file.name
-        # Enviar o arquivo JSON via multipart/form-data para o gateway
-        async with httpx.AsyncClient() as client:
-          with open(temp_file_path, "rb") as json_file:
-              files = {
-                  "study_id": (None, study_id),
-                  "user_id": (None, user_id),
-                  "module": (None, "residual"),
-                  "files": ("residual.json", json_file, "application/json"),
-              }
-              gateway_response = await client.post(f"{GATEWAY_URL}/save-module", files=files)
-              gateway_response.raise_for_status()
-              gateway_result = gateway_response.json()  # Ex.: { "message": "Dados recebidos com sucesso" }
-        
-        os.remove(temp_file_path)
-
-        # Return the results in JSON format
-        return { "residual": "Ok" }
+            
+        return results
 
     except HTTPException as he:
         raise he
