@@ -68,7 +68,7 @@ async def process_ecg_data(temp_dir: str, num_parts: int, samples_per_part: int,
         get_beat_classification(UPLOAD_DIR=temp_dir),
         get_spectral_analysis(UPLOAD_DIR=temp_dir)
     )
-    modules = ["segmentation", "frequencies", "artifacts", "disturbances", "newmetrics", 
+    modules = ["segmentation", "frequencies", "artifacts", "disturbances", "metrics", 
                "rr_interval", "heart_rate", "beat_classification", "spectral_analysis"]
     return dict(zip(modules, results))
 
@@ -88,7 +88,7 @@ async def send_module_data(queue: asyncio.Queue, module: str,
 async def analyze_ecg(
     num_parts: Optional[int] = Form(2),
     samples_per_part: Optional[int] = Form(25),
-    base_frequency: Optional[int] = Form(250),
+    base_frequency: Optional[int] = Form(...),
     files: List[UploadFile] = File(...),
     user_id: Optional[str] = Form(...),
     study_id: Optional[str] = Form(...),

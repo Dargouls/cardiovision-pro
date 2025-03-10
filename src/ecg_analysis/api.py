@@ -33,9 +33,9 @@ app = APIRouter()
 @app.post("/analyze_segmentation")
 async def get_segments(
     upload_dir: str = Form(...),
-    num_parts: Optional[int] = Form(4),
-    frequency: Optional[int] = Form(250),
-    samples_per_part: Optional[int] = Form(5000),
+    num_parts: Optional[int] = Form(...),
+    frequency: Optional[int] = Form(...),
+    samples_per_part: Optional[int] = Form(...),
 ):
     try:
         print("Etapa: Segmentação")
