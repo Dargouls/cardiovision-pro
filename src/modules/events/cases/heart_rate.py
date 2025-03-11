@@ -75,10 +75,19 @@ class HeartRateAnalyzer:
             r_peaks, rr = future_hr.result()
             ventricular, supraventricular = future_events.result()
         
+        signal_length = len(data['signal'])
+        fs = data['fs']
+        # Alinha o vetor de tempo com a frequência usada
+        if self.desired_fs is None:
+            t = np.arange(signal_length) / fs
+        else:
+            duration = signal_length / fs
+            t = np.arange(0, duration, 1 / self.desired_fs)
+        
         return {
-            'time': data['t_seconds'].tolist(),  # Reutiliza o vetor de tempo original
-            'samplingRate': data['fs'],
-            'bpm_signal': self._interpolate_hr(r_peaks, rr, data['fs'], len(data['signal'])),
+            'time': t.tolist(),
+            'samplingRate': fs,
+            'bpm_signal': self._interpolate_hr(r_peaks, rr, fs, signal_length),
             'events': {
                 'ventricular': ventricular,
                 'supraventricular': supraventricular

@@ -40,6 +40,7 @@ async def get_segments(
     try:
         print("Etapa: Segmentação")
         available_records = get_available_records(upload_dir)[0]
+        print('available_records in segment: ', available_records)
         if not available_records:
             raise HTTPException(status_code=400, detail="Nenhum registro WFDB encontrado.")
         

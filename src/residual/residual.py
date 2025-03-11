@@ -173,13 +173,8 @@ class ECGAnalyzer:
           # Convert all numpy types before JSON serialization
           result_data = self._convert_numpy_types(result_data)
 
-          # Save all data to JSON file
-          output_file = Path(self.base_path) / f"{record_name}_analysis.json"
-          with open(output_file, 'w') as f:
-              json.dump(result_data, f, indent=2)
-
-          print(f"Analysis data saved to {output_file}")
-          return result_data
+          
+          return {'residual': result_data}
 
       except Exception as e:
           print(f"Error analyzing residual: {str(e)}")

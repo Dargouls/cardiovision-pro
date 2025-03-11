@@ -17,7 +17,7 @@ app = APIRouter()
 
 # Route to analyze ECG artifacts
 @app.post("/analyze-ecg-artifacts")
-async def analyze_ecg_artifacts(
+async def analyze_residual(
   UPLOAD_DIR: str
 ):
     """
