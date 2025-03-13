@@ -1,90 +1,70 @@
 import wfdb
 import numpy as np
-import neurokit2 as nk
-import asyncio
-from concurrent.futures import ProcessPoolExecutor
-import os
+from scipy.signal import find_peaks, butter, filtfilt
+from neurokit2 import ecg_process
+
+from ...utils.copyWfdb import copy_record
 
 class STSegmentDetector:
-    def __init__(self, record_path, st_offset_ms=60):  # st_offset_ms=60 é o valor padrão
+    """
+    Classe para análise dos eventos ST do ECG.
+    Para cada derivação (lead), retorna um objeto contendo:
+      - time: array com os tempos (em segundos) dos eventos (picos R)
+      - signal: array onde cada elemento é um array [st1, st2] com os valores dos segmentos ST.
+    """
+
+    def __init__(self, record_path):
+        """
+        Inicializa o detector com o caminho do registro.
+        
+        :param record_path: Caminho para o registro ECG.
+        """
         self.record_path = record_path
-        self.st_offset_ms = st_offset_ms
 
-    async def load_data(self):
-        """Carrega os dados do registro ECG."""
-        record = wfdb.rdrecord(self.record_path)
-        return {
-            'signals': record.p_signal.astype(np.float32),  # Garantir precisão numérica
-            'fs': record.fs,
-            't_seconds': np.arange(record.p_signal.shape[0]) / record.fs
-        }
+    async def _get_events(self):
+        record = await copy_record(self.record_path)
+        fs = record.fs
+        results = []
 
-    def _process_lead(self, signal, fs, t_seconds, samples_offset, lead_number):
-        """Processa uma derivação individual do ECG e retorna apenas dados válidos."""
-        try:
-            # Limpeza do sinal para remover ruídos e artefatos
-            cleaned_signal = nk.ecg_clean(signal, sampling_rate=fs, method="neurokit")
-            
-            # Processamento do ECG com o sinal limpo
-            _, info = nk.ecg_process(cleaned_signal, sampling_rate=fs)
+        # Processa cada derivação (lead) individualmente.
+        for channel in range(record.n_sig):
+            signal = record.p_signal[:, channel]
+            _, info = ecg_process(signal, fs)
             r_peaks = info['ECG_R_Peaks']
             
-            # Delineamento QRS usando Transformada Wavelet Discreta (dwt)
-            _, delineate_info = nk.ecg_delineate(
-                cleaned_signal, r_peaks, sampling_rate=fs, method="dwt"
-            )
-            qrs_offsets = np.array(delineate_info.get("ECG_S_Peaks", []))
-            
-            # Cálculo dos valores ST com operações vetorizadas
-            valid_mask = ~np.isnan(qrs_offsets)
-            valid_offsets = qrs_offsets[valid_mask].astype(int)
-            measure_indices = valid_offsets + samples_offset
-            
-            # Máscaras para índices válidos
-            within_bounds = (measure_indices >= 0) & (measure_indices < len(signal))
-            valid_measure_indices = measure_indices[within_bounds]
-            
-            # Coleta apenas os valores e tempos válidos
-            st_values = signal[valid_measure_indices].tolist()
-            st_times = t_seconds[valid_measure_indices].tolist()
-            
-            return {
-                'lead': lead_number,
-                'st_values': st_values,
-                'st_times': st_times
-            }
-        except Exception as e:
-            return {'lead': lead_number, 'error': str(e)}
+            times = []
+            st_signals = []
 
-    async def detect_st_segments(self):
-        """Detecta os segmentos ST em todas as derivações usando paralelismo otimizado."""
-        data = await self.load_data()
-        signals = data['signals']
-        fs = data['fs']
-        samples_offset = int((self.st_offset_ms / 1000) * fs)  # Conversão de ms para amostras
-        
-        # Processamento paralelo com limite de workers
-        loop = asyncio.get_event_loop()
-        with ProcessPoolExecutor(max_workers=min(4, os.cpu_count())) as executor:
-            tasks = [
-                loop.run_in_executor(
-                    executor,
-                    self._process_lead,
-                    signals[:, lead],
-                    fs,
-                    data['t_seconds'],
-                    samples_offset,
-                    lead + 1
-                )
-                for lead in range(signals.shape[1])
-            ]
-            results = await asyncio.gather(*tasks)
-        
+            # Para cada pico R, exceto o último para evitar índice fora do limite
+            for r in r_peaks[:-1]:
+                # Define a linha de base usando os 40 ms anteriores ao pico R
+                pr_start = max(0, r - int(0.04 * fs))
+                baseline = np.mean(signal[pr_start:r]) if r > pr_start else 0
+
+                # Calcula ST1: 40 ms após o pico R
+                idx_st1 = r + int(0.04 * fs)
+                st1_val = (signal[idx_st1] - baseline) * 1000 if idx_st1 < len(signal) else None
+
+                # Calcula ST2: 80 ms após o pico R
+                idx_st2 = r + int(0.08 * fs)
+                st2_val = (signal[idx_st2] - baseline) * 1000 if idx_st2 < len(signal) else None
+
+                times.append(r / fs)
+                st_signals.append([st1_val, st2_val])
+
+            lead_name = record.sig_name[channel] if hasattr(record, "sig_name") else f"Lead {channel}"
+            results.append({
+                "lead": lead_name,
+                "time": times,
+                "signal": st_signals
+            })
+
         return results
 
     async def get_results(self):
-        """Retorna os resultados da detecção dos segmentos ST com apenas dados válidos."""
-        results = await self.detect_st_segments()
-        # Opcional: Filtrar resultados com erro
-        valid_results = [r for r in results if 'error' not in r]
-        return {'segmentation_st': valid_results}
+        """
+        Obtém os resultados da análise dos eventos ST.
+        
+        :return: Array de objetos para cada derivação, com as variáveis 'time' e 'signal'.
+        """
+        return await self._get_events()

@@ -127,7 +127,6 @@ def get_record_path(upload_dir: str) -> str:
         raise HTTPException(400, "Nenhum registro WFDB encontrado.")
     return f"{upload_dir}/{available_records[0]}"
 
-
 @app.post("/heart-rate")
 async def get_heart_rate(
     UPLOAD_DIR: str = Form(...),

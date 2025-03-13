@@ -114,7 +114,7 @@ async def process_analysis(
             ("heart_rate", get_heart_rate, {"UPLOAD_DIR": temp_dir, "frequency": base_frequency}),
             ("beat_classification", get_beat_classification, {"UPLOAD_DIR": temp_dir}),
             ("spectral_analysis", get_spectral_analysis, {"UPLOAD_DIR": temp_dir}),
-            ("segmentation_st", get_segmentation_st, {"upload_dir": temp_dir, "st_offset_ms": 60})
+            ("segmentation_st", get_segmentation_st, {"upload_dir": temp_dir})
         ]
 
         total_steps = len(modules)

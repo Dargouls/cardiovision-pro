@@ -14,7 +14,7 @@ app = APIRouter()
 
 @app.post("/new_metrics")
 async def get_metrics(
-    UPLOAD_DIR: str
+    UPLOAD_DIR: str = Form(...)
 ):
     try:
         records = get_available_records(UPLOAD_DIR)
