@@ -111,8 +111,8 @@ async def process_analysis(
             ("disturbances", analyze_disturbances, {"UPLOAD_DIR": temp_dir}),
             ("metrics", get_metrics, {"UPLOAD_DIR": temp_dir}),
             ("rr_intervals", get_rr_intervals, {"UPLOAD_DIR": temp_dir}),
-            ("frequência_cardiaca", get_heart_rate, {"UPLOAD_DIR": temp_dir, "frequency": base_frequency}),
-            ("classificação_batimentos", get_beat_classification, {"UPLOAD_DIR": temp_dir}),
+            ("heart_rate", get_heart_rate, {"UPLOAD_DIR": temp_dir, "frequency": base_frequency}),
+            ("beat_classification", get_beat_classification, {"UPLOAD_DIR": temp_dir}),
             ("spectral_analysis", get_spectral_analysis, {"UPLOAD_DIR": temp_dir}),
             ("segmentation_st", get_segmentation_st, {"upload_dir": temp_dir, "st_offset_ms": 60})
         ]
@@ -132,7 +132,6 @@ async def process_analysis(
                 await update_progress(study_id, step, "FAILED", str(e))
                 return
 
-        await update_progress(study_id, total_steps, "SUCCESS")
 
         client = httpx.AsyncClient(timeout=httpx.Timeout(10.0))
         queue = asyncio.Queue()
@@ -142,10 +141,13 @@ async def process_analysis(
         for module, data in results.items():
             await send_module_data(queue, module, data, study_id, user_id, GATEWAY_URL)
 
+        
         await queue.join()
         for w in workers:
             w.cancel()
         await client.aclose()
+
+        await update_progress(study_id, total_steps, "SUCCESS")
 
     except Exception as e:
         logger.error(f"Erro geral no processamento: {str(e)}")
