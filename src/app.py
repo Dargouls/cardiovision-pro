@@ -125,6 +125,8 @@ async def process_analysis(
         for step, (module_name, func, kwargs) in enumerate(modules, 1):
             try:
                 logger.info(f"Processando módulo {module_name} (passo {step})")
+                print(f"Processando módulo {module_name} (passo {step})")
+                
                 results[module_name] = await func(**kwargs)
                 await update_progress(study_id, step, "PROCESSING")
             except Exception as e:
