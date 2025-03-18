@@ -152,7 +152,7 @@ def converter_xcm(xcm_file_path, output_folder):
     record_name = 'ecg-signal'
     
     # Parâmetros de conversão
-    fs = 360.0         # Frequência de amostragem (ajuste conforme necessário)
+    fs = 250.0         # Frequência de amostragem (ajuste conforme necessário)
     header_size = 128  # Tamanho do cabeçalho do arquivo XCM (em bytes)
     dtype = 'int8'     # Tipo de dado (ajuste conforme o formato do seu arquivo XCM)
     

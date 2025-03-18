@@ -28,6 +28,7 @@ import asyncio
 import httpx
 import os
 import json
+import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("uvicorn")
@@ -103,6 +104,7 @@ async def process_analysis(
     user_id: str
 ):
     try:
+        
         modules = [
             ("segmentation", get_segments, {"upload_dir": temp_dir, "num_parts": num_parts, 
              "samples_per_part": samples_per_part, "frequency": base_frequency}),
@@ -126,8 +128,11 @@ async def process_analysis(
             try:
                 logger.info(f"Processando módulo {module_name} (passo {step})")
                 print(f"Processando módulo {module_name} (passo {step})")
+                start_time = time.perf_counter()  # Início da medição
                 
                 results[module_name] = await func(**kwargs)
+                elapsed_time = time.perf_counter() - start_time  # Tempo decorrido
+                logger.info(f"Módulo {module_name} finalizado em {elapsed_time:.2f} segundos.")
                 await update_progress(study_id, step, "PROCESSING")
             except Exception as e:
                 logger.error(f"Erro no módulo {module_name}: {str(e)}")

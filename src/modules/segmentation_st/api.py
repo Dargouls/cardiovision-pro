@@ -17,7 +17,7 @@ async def get_segmentation_st(
         record_path = f"{upload_dir}/{get_available_records(upload_dir)[0]}"
 
         analyzer = STSegmentDetector(record_path)
-        results = await analyzer.get_results()
+        results = analyzer.get_results()
         return results
     except Exception as e:
         print(f'Erro em segmentation-st: {e}')

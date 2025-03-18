@@ -1,70 +1,97 @@
+# -*- coding: utf-8 -*-
 import wfdb
+import neurokit2 as nk
 import numpy as np
-from scipy.signal import find_peaks, butter, filtfilt
-from neurokit2 import ecg_process
+import json
 
 from ...utils.copyWfdb import copy_record
 
 class STSegmentDetector:
-    """
-    Classe para análise dos eventos ST do ECG.
-    Para cada derivação (lead), retorna um objeto contendo:
-      - time: array com os tempos (em segundos) dos eventos (picos R)
-      - signal: array onde cada elemento é um array [st1, st2] com os valores dos segmentos ST.
-    """
+  def __init__(self, record_path):
+    self.record_path = record_path
 
-    def __init__(self, record_path):
-        """
-        Inicializa o detector com o caminho do registro.
-        
-        :param record_path: Caminho para o registro ECG.
-        """
-        self.record_path = record_path
+  def load_ecg_data(self):
+      """
+      Carrega os dados do ECG a partir de um registro WFDB.
+      Atualize o caminho para o seu arquivo (sem extensão .dat).
+      """
+      signals, fields = wfdb.rdsamp(self.record_path)
+      return signals, fields
 
-    async def _get_events(self):
-        record = await copy_record(self.record_path)
-        fs = record.fs
-        results = []
+  def preprocess_ecg(self, signals, fs):
+      """
+      Filtra os sinais de ECG e detecta os R-picos para cada canal.
+      """
+      cleaned_signals = []
+      r_peaks = []
+      num_channels = signals.shape[1]
+      
+      for channel in range(num_channels):
+          cleaned = nk.ecg_clean(signals[:, channel], sampling_rate=fs)
+          _, peaks = nk.ecg_peaks(cleaned, sampling_rate=fs)
+          cleaned_signals.append(cleaned)
+          r_peaks.append(peaks['ECG_R_Peaks'])
+      
+      return cleaned_signals, r_peaks
 
-        # Processa cada derivação (lead) individualmente.
-        for channel in range(record.n_sig):
-            signal = record.p_signal[:, channel]
-            _, info = ecg_process(signal, fs)
-            r_peaks = info['ECG_R_Peaks']
-            
-            times = []
-            st_signals = []
+  def calculate_st_deviation_with_limit(self, cleaned_signal, rpeaks, fs, max_samples=None):
+      """
+      Calcula o desvio do segmento ST e os tempos correspondentes.
+      """
+      st_deviations = []
+      times = []
+      contador = 0
 
-            # Para cada pico R, exceto o último para evitar índice fora do limite
-            for r in r_peaks[:-1]:
-                # Define a linha de base usando os 40 ms anteriores ao pico R
-                pr_start = max(0, r - int(0.04 * fs))
-                baseline = np.mean(signal[pr_start:r]) if r > pr_start else 0
+      for rpeak in rpeaks:
+          if max_samples is not None and contador >= max_samples:
+              break
 
-                # Calcula ST1: 40 ms após o pico R
-                idx_st1 = r + int(0.04 * fs)
-                st1_val = (signal[idx_st1] - baseline) * 1000 if idx_st1 < len(signal) else None
+          try:
+              j_point = rpeak + int(0.08 * fs)
+              st_end = j_point + int(0.08 * fs)
+              baseline_start = rpeak - int(0.2 * fs)
+              baseline_end = rpeak - int(0.1 * fs)
+              
+              baseline = np.mean(cleaned_signal[baseline_start:baseline_end])
+              st_value = np.mean(cleaned_signal[j_point:st_end]) - baseline
+              
+              st_deviations.append(st_value)
+              times.append(rpeak / fs)  # Tempo em segundos
+              contador += 1
+          except IndexError:
+              continue
 
-                # Calcula ST2: 80 ms após o pico R
-                idx_st2 = r + int(0.08 * fs)
-                st2_val = (signal[idx_st2] - baseline) * 1000 if idx_st2 < len(signal) else None
+      return np.array(st_deviations), times
 
-                times.append(r / fs)
-                st_signals.append([st1_val, st2_val])
-
-            lead_name = record.sig_name[channel] if hasattr(record, "sig_name") else f"Lead {channel}"
-            results.append({
-                "lead": lead_name,
-                "time": times,
-                "signal": st_signals
-            })
-
-        return results
-
-    async def get_results(self):
-        """
-        Obtém os resultados da análise dos eventos ST.
-        
-        :return: Array de objetos para cada derivação, com as variáveis 'time' e 'signal'.
-        """
-        return await self._get_events()
+  def get_results(self):
+      # Carregar dados e configurar
+      signals, fields = self.load_ecg_data()
+      fs = fields['fs']
+      num_channels = signals.shape[1]
+      cleaned_signals, r_peaks = self.preprocess_ecg(signals, fs)
+      
+      # Processar cada canal
+      all_st_deviations = []
+      all_times = []
+      max_samples = 5000
+      
+      for channel in range(num_channels):
+          deviations, times = self.calculate_st_deviation_with_limit(
+              cleaned_signals[channel], 
+              r_peaks[channel], 
+              fs, 
+              max_samples
+          )
+          all_st_deviations.append(deviations)
+          all_times.append(times)
+      
+      # Construir JSON
+      result = []
+      for channel in range(num_channels):
+          lead_name = fields.get('sig_name', [f'Channel {i+1}' for i in range(num_channels)])[channel]
+          result.append({
+              "lead": lead_name,
+              "signal": all_st_deviations[channel].tolist(),
+              "time": all_times[channel]
+          })
+      return result
