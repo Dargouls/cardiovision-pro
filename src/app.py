@@ -15,6 +15,7 @@ from .metrics.api import app as metrics_Routes, get_metrics
 from .metadata.api import app as metadata_Routes
 from .modules.events.api import app as events_Routes, get_rr_intervals, get_heart_rate, get_beat_classification, get_spectral_analysis
 from .modules.segmentation_st.api import app as segmentation_st_Routes, get_segmentation_st
+from .modules.arritmiasDetector.api import app as arritmiasDetector_Routes, get_arrhythmias
 
 from .utils.xcmConverter import converter_xcm
 
@@ -62,6 +63,7 @@ app.include_router(residual_Routes)
 app.include_router(metrics_Routes)
 app.include_router(events_Routes)
 app.include_router(segmentation_st_Routes)
+app.include_router(arritmiasDetector_Routes)
 
 @app.on_event("startup")
 async def startup():
@@ -116,7 +118,8 @@ async def process_analysis(
             # ("heart_rate", get_heart_rate, {"UPLOAD_DIR": temp_dir, "frequency": base_frequency}),
             # ("beat_classification", get_beat_classification, {"UPLOAD_DIR": temp_dir}),
             # ("spectral_analysis", get_spectral_analysis, {"UPLOAD_DIR": temp_dir}),
-            ("segmentation_st", get_segmentation_st, {"upload_dir": temp_dir})
+            ("segmentation_st", get_segmentation_st, {"upload_dir": temp_dir}),
+            ("arrhythmias", get_arrhythmias, {"upload_dir": temp_dir, "frequency": base_frequency})
         ]
 
         total_steps = len(modules)
