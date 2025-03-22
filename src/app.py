@@ -113,7 +113,7 @@ async def process_analysis(
             ("frequencies", get_frequencies_chart, {"UPLOAD_DIR": temp_dir, "frequency": base_frequency}),
             ("residual", analyze_residual, {"UPLOAD_DIR": temp_dir}),
             ("disturbances", analyze_disturbances, {"UPLOAD_DIR": temp_dir}),
-            ("metrics", get_metrics, {"UPLOAD_DIR": temp_dir}),
+            ("metrics", get_metrics, {"UPLOAD_DIR": temp_dir, "frequency": base_frequency}),
             # ("rr_intervals", get_rr_intervals, {"UPLOAD_DIR": temp_dir}),
             # ("heart_rate", get_heart_rate, {"UPLOAD_DIR": temp_dir, "frequency": base_frequency}),
             # ("beat_classification", get_beat_classification, {"UPLOAD_DIR": temp_dir}),

@@ -10,9 +10,9 @@ class AnalisadorECG:
     Classe para análise de sinais ECG com detecção de picos R aprimorada e cálculo de métricas de Holter.
     Mantém a mesma estrutura de saída original.
     """
-
-    def __init__(self, caminho_diretorio):
+    def __init__(self, caminho_diretorio, frequency=None):
         self.caminho_diretorio = caminho_diretorio
+        self.frequency = frequency  # Frequência fornecida pelo usuário ou None
         self.resultados = []
 
     def filtrar_sinal(self, sinal, fs, lowcut=0.5, highcut=40.0):
@@ -124,6 +124,8 @@ class AnalisadorECG:
         for caminho_registro in registros:
             try:
                 registro = await copy_record(caminho_registro)
+                # Usar a frequência fornecida pelo usuário, se disponível, ou a do arquivo
+                fs = self.frequency if self.frequency is not None else registro.fs
                 estatisticas_canais = []
                 
                 for i in range(registro.n_sig):
@@ -132,15 +134,15 @@ class AnalisadorECG:
                         'canal': i,
                         'nome_sinal': registro.sig_name[i],
                         'estatisticas_sinal': self.calcular_estatisticas_sinal(sinal),
-                        'estatisticas_fc': self.detectar_picos_qrs(sinal, registro.fs)
+                        'estatisticas_fc': self.detectar_picos_qrs(sinal, fs)
                     })
                 
                 self.resultados.append({
                     'info': {
                         'nome_registro': os.path.basename(caminho_registro),
                         'n_sinais': registro.n_sig,
-                        'fs': registro.fs,
-                        'duracao': registro.sig_len / registro.fs,
+                        'fs': fs,  # Reflete a frequência usada
+                        'duracao': registro.sig_len / fs,
                         'n_amostras': registro.sig_len
                     },
                     'canais': estatisticas_canais
