@@ -1,15 +1,11 @@
-from fastapi import APIRouter, HTTPException, Form
-from pathlib import Path
-from typing import Dict
+from fastapi import APIRouter, HTTPException
+
 from .residual import ECGAnalyzer  # Import the ECGAnalyzer class
 
 import os
-import tempfile
-import json
-import httpx
 
-from ..utils.getAvailableRecords import get_available_records
-from ..utils.saveTempFiles import saveTempFiles
+from ...utils.getAvailableRecords import get_available_records
+from ...utils.saveTempFiles import saveTempFiles
 
 GATEWAY_URL = os.getenv("GATEWAY_URL")
 

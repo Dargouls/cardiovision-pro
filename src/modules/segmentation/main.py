@@ -1,8 +1,5 @@
 # segmentation
-import uvicorn
-import wfdb
 import numpy as np
-import os
 from .signal_processor import SignalProcessor
 from .data_manager import ECGDataManager
 

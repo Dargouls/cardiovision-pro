@@ -7,7 +7,7 @@ from pathlib import Path
 import json
 import datetime
 
-from ..utils.copyWfdb import copy_record
+from ...utils.copyWfdb import copy_record
 
 class ECGAnalyzer:
     PARAMS = {

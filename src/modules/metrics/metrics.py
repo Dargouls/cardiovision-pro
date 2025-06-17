@@ -3,7 +3,7 @@ import numpy as np
 from scipy import stats
 from scipy.signal import find_peaks, welch, butter, filtfilt
 from datetime import datetime
-from ..utils.copyWfdb import copy_record
+from ...utils.copyWfdb import copy_record
 
 class AnalisadorECG:
     """

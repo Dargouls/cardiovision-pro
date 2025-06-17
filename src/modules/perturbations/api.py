@@ -1,15 +1,11 @@
-from fastapi import APIRouter, HTTPException, Form
-from pathlib import Path
-from typing import List, Dict
+from fastapi import APIRouter, HTTPException
+
 from .perturbations import AnalisadorInterferencia  # Import the AnalisadorInterferencia class
 
 import os
-import tempfile
-import json
-import httpx
 
-from ..utils.getAvailableRecords import get_available_records
-from ..utils.saveTempFiles import saveTempFiles
+from ...utils.getAvailableRecords import get_available_records
+from ...utils.saveTempFiles import saveTempFiles
 
 GATEWAY_URL = os.getenv("GATEWAY_URL")
 

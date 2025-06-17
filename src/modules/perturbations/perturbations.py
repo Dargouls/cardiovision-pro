@@ -1,10 +1,8 @@
-import wfdb
 import numpy as np
-import json
 from pathlib import Path
 from scipy.signal import welch
 
-from ..utils.copyWfdb import copy_record
+from ...utils.copyWfdb import copy_record
 class AnalisadorInterferencia:
     PARAMS = {
         'interferencia_rede': {

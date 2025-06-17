@@ -7,7 +7,7 @@ import base64
 from io import BytesIO
 import datetime
 
-from ..utils.copyWfdb import copy_record
+from ...utils.copyWfdb import copy_record
 
 class ECGAnalyzer:
     PARAMS = {
@@ -196,17 +196,3 @@ class ECGAnalyzer:
     async def save_complete_analysis(self, record_name, desired_frequency=None, period=None):
       analysis_data = await self.analyze_ecg(record_name, desired_frequency=desired_frequency, period=period)
       return analysis_data if analysis_data else False
-
-    def get_available_records(self):
-        """Listar registros disponíveis."""
-        try:
-            records = []
-            for hea_file in self.base_path.glob('*.hea'):
-                record_name = hea_file.stem
-                dat_file = hea_file.with_suffix('.dat')
-                if dat_file.exists():
-                    records.append(record_name)
-            return records
-        except Exception as e:
-            print(f"Erro ao listar registros: {str(e)}")
-            return []

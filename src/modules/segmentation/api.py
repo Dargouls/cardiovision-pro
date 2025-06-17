@@ -2,21 +2,18 @@ from fastapi import HTTPException, File, UploadFile, Form, APIRouter
 
 import wfdb
 
-from ..utils.getAvailableRecords import get_available_records
-from ..utils.saveTempFiles import saveTempFiles
-from ..utils.copyWfdb import copy_record
+from ...utils.getAvailableRecords import get_available_records
+from ...utils.saveTempFiles import saveTempFiles
+from ...utils.copyWfdb import copy_record
 
-from ..ecg_analysis.main import ECGAnalyzer
+from .main import ECGAnalyzer
 
 from dotenv import load_dotenv
 from pathlib import Path
 from typing import List, Optional
 
-import copy
 import tempfile
 import os
-import json
-import httpx
 import asyncio
 
 # Lock global para serializar acesso ao WFDB / Suspender corrotinas

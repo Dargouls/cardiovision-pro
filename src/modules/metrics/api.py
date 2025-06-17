@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Form
 
 from .metrics import AnalisadorECG
-from ..utils.getAvailableRecords import get_available_records
+from ...utils.getAvailableRecords import get_available_records
 
 from typing import Optional
 
