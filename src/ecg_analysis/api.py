@@ -39,6 +39,7 @@ async def get_segments(
 ):
     try:
         print("Etapa: Segmentação")
+        print('upload_dir in segment: ', upload_dir)
         available_records = get_available_records(upload_dir)[0]
         print('available_records in segment: ', available_records)
         if not available_records:
@@ -55,7 +56,7 @@ async def get_segments(
 
     except Exception as e:
         import traceback
-        print("Erro em segmentar:", e)
+        print("Erro em segmentar:", str(e))
         traceback.print_exc()  # Imprime o traceback completo
         raise HTTPException(status_code=500, detail=str(e))
 

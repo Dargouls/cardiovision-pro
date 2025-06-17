@@ -74,111 +74,108 @@ class ECGAnalyzer:
         elif isinstance(obj, list):
             return [self._convert_numpy_types(item) for item in obj]
         return obj
+    
     async def analyze_ecg(self, record_name, segment_duration=10):
-      result_data = {
-          'record_name': record_name,
-          'analysis_time': datetime.datetime.now().isoformat(),
-          'input_parameters': {
-              'segment_duration': segment_duration,
-              'base_path': str(self.base_path)
-          },
-          'record_info': {},
-          'signals': [],  # Agora será um array de objetos
-          'annotations': {},
-          'statistics': {},  # Adicionado para armazenar as métricas estatísticas
-      }
+        result_data = {
+            'record_name': record_name,
+            'analysis_time': datetime.datetime.now().isoformat(),
+            'input_parameters': {
+                'segment_duration': segment_duration,
+                'base_path': str(self.base_path)
+            },
+            'record_info': {},
+            'signals': [],
+            'annotations': {},
+            'statistics': {},
+        }
 
-      try:
-          # Load the signal and annotations
-          signals, fs, annotations = await self.load_record(record_name)
-          n_channels = signals.shape[1]
-          total_samples = len(signals)
+        try:
+            # Load the signal and annotations
+            signals, fs, annotations = await self.load_record(record_name)
+            n_channels = signals.shape[1]
+            total_samples = len(signals)
 
-          # Save basic record info
-          result_data['record_info'] = {
-              'sampling_frequency': int(fs),
-              'duration': float(total_samples / fs),
-              'n_channels': n_channels,
-              'n_samples': int(total_samples)
-          }
+            # Save basic record info
+            result_data['record_info'] = {
+                'sampling_frequency': int(fs),
+                'duration': float(total_samples / fs),
+                'n_channels': n_channels,
+                'n_samples': int(total_samples)
+            }
 
-          # Save annotations if available
-          if annotations:
-              result_data['annotations'] = {
-                  'sample_points': [int(x) for x in annotations.sample],
-                  'symbols': list(annotations.symbol),
-                  # 'aux_note': list(annotations.aux_note)
-              }
+            # Define segments: Start, Mid, End
+            segment_length = int(segment_duration * fs)
+            segments = {
+                'start': 0,
+                'mid': total_samples // 2 - segment_length // 2,
+                'end': total_samples - segment_length
+            }
 
-          # Define segments: Start, Mid, End
-          segment_length = int(segment_duration * fs)
-          segments = {
-              'start': 0,
-              'mid': total_samples // 2 - segment_length // 2,
-              'end': total_samples - segment_length
-          }
+            # Process each segment and channel
+            for period, start in segments.items():
+                for j in range(n_channels):
+                    segment = signals[start:start + segment_length, j]
+                    time = np.arange(len(segment)) / fs
 
-          # Process each segment and channel
-          for period, start in segments.items():
-              for j in range(n_channels):
-                  segment = signals[start:start + segment_length, j]
-                  time = np.arange(len(segment)) / fs
+                    # Suavização do sinal usando filtro Savitzky-Golay
+                    smoothed_segment = savgol_filter(segment, window_length=51, polyorder=3)
+                    noise = segment - smoothed_segment  # Sujeira estatística (ruído)
 
-                  # Suavização do sinal usando filtro Savitzky-Golay
-                  smoothed_segment = savgol_filter(segment, window_length=51, polyorder=3)
-                  noise = segment - smoothed_segment  # Sujeira estatística (ruído)
+                    # Objeto do segmento para o canal
+                    signal_object = {
+                        'period': period,
+                        'channel': j + 1,
+                        'start_index': int(start),
+                        'duration': float(segment_length / fs),
+                        'time': time.tolist(),
+                        'signal': segment.tolist(),
+                        'smoothed_signal': smoothed_segment.tolist(),
+                        'noise': noise.tolist(),
+                        'annotations': []
+                    }
 
-                  # Objeto do segmento para o canal
-                  signal_object = {
-                      'period': period,
-                      'channel': j + 1,
-                      'start_index': int(start),
-                      'duration': float(segment_length / fs),
-                      'time': time.tolist(),
-                      'signal': segment.tolist(),  # Alterado de 'data' para 'signal'
-                      'smoothed_signal': smoothed_segment.tolist(),  # Alterado de 'smoothed_data' para 'smoothed_signal'
-                      'noise': noise.tolist(),
-                      'annotations': []
-                  }
+                    # Adicionar anotações se disponíveis
+                    if annotations:
+                        # pega apenas as anotações dentro deste segmento
+                        segment_anns = [
+                            (int(ann_time), ann_label)
+                            for ann_time, ann_label in zip(annotations.sample, annotations.symbol)
+                            if start <= ann_time < start + segment_length
+                        ]
+                        for ann_time, ann_label in segment_anns:
+                            rel_idx = int(ann_time - start)
+                            # **checa bounds antes de indexar**
+                            if rel_idx < 0 or rel_idx >= len(segment):
+                                continue
+                            relative_time = rel_idx / fs
+                            signal_object['annotations'].append({
+                                'time': relative_time,
+                                'label': ann_label,
+                                'value': float(segment[rel_idx])
+                            })
 
-                  # Adicionar anotações se disponíveis
-                  if annotations:
-                      segment_anns = [
-                          (int(ann_time), ann_label)
-                          for ann_time, ann_label in zip(annotations.sample, annotations.symbol)
-                          if start <= ann_time < start + segment_length
-                      ]
-                      for ann_time, ann_label in segment_anns:
-                          relative_time = float((ann_time - start) / fs)
-                          signal_object['annotations'].append({
-                              'time': relative_time,
-                              'label': ann_label,
-                              'value': float(segment[ann_time - start])
-                          })
+                    # Adicionar objeto ao array de sinais
+                    result_data['signals'].append(signal_object)
 
-                  # Adicionar objeto ao array de sinais
-                  result_data['signals'].append(signal_object)
+                    # Calcular estatísticas
+                    result_data['statistics'][f"{period}_Channel_{j+1}"] = {
+                        'mean': float(np.mean(segment)),
+                        'std': float(np.std(segment)),
+                        'min': float(np.min(segment)),
+                        'max': float(np.max(segment)),
+                        'median': float(np.median(segment)),
+                        'noise_mean': float(np.mean(noise)),
+                        'noise_std': float(np.std(noise))
+                    }
 
-                  # Calcular estatísticas
-                  result_data['statistics'][f"{period}_Channel_{j+1}"] = {
-                      'mean': float(np.mean(segment)),
-                      'std': float(np.std(segment)),
-                      'min': float(np.min(segment)),
-                      'max': float(np.max(segment)),
-                      'median': float(np.median(segment)),
-                      'noise_mean': float(np.mean(noise)),
-                      'noise_std': float(np.std(noise))
-                  }
+            # Convert all numpy types before JSON serialization
+            result_data = self._convert_numpy_types(result_data)
 
-          # Convert all numpy types before JSON serialization
-          result_data = self._convert_numpy_types(result_data)
+            return {'residual': result_data}
 
-          
-          return {'residual': result_data}
-
-      except Exception as e:
-          print(f"Error analyzing residual: {str(e)}")
-          return None
+        except Exception as e:
+            print(f"Error analyzing residual: {str(e)}")
+            return None
 
 
     async def save_complete_analysis(self, record_name):

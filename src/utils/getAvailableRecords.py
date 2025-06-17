@@ -23,6 +23,7 @@ def get_available_records(UPLOAD_DIR: str):
         # Obter os stems dos arquivos com extensão válida
         files = [p.stem for p in UPLOAD_DIR.glob('*') if p.suffix.lower() in valid_extensions]
         
+        print('files: ', list(dict.fromkeys(files)))
         # Remover duplicatas mantendo a ordem
         return list(dict.fromkeys(files))
     

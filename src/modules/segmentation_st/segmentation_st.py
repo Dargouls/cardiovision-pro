@@ -27,7 +27,9 @@ class STSegmentDetector:
       num_channels = signals.shape[1]
       
       for channel in range(num_channels):
-          cleaned = nk.ecg_clean(signals[:, channel], sampling_rate=fs)
+          sig = signals[:, channel]
+          print(f"Canal {channel + 1} - Tamanho do sinal: {len(sig)}")
+          cleaned = nk.ecg_clean(sig, sampling_rate=fs, method='biosppy')
           _, peaks = nk.ecg_peaks(cleaned, sampling_rate=fs)
           cleaned_signals.append(cleaned)
           r_peaks.append(peaks['ECG_R_Peaks'])

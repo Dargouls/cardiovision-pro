@@ -1,8 +1,11 @@
 import logging
+import traceback
 
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from supabase import create_client, Client
+
+from .database.database import get_db
+from .database.progress_crud import create_progress, update_progress, get_progress
 
 from .utils.saveTempFiles import saveTempFiles
 from .utils.http_worker import worker
@@ -18,6 +21,7 @@ from .modules.segmentation_st.api import app as segmentation_st_Routes, get_segm
 from .modules.arritmiasDetector.api import app as arritmiasDetector_Routes, get_arrhythmias
 
 from .utils.xcmConverter import converter_xcm
+from .converters.bin_converter import BinConverter
 
 from dotenv import load_dotenv
 from typing import List, Optional
@@ -52,8 +56,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# Configuração do Supabase
-supabase: Client = None
 
 app.include_router(reportMetrics_Routes)
 app.include_router(ecgAnalysis_Routes)
@@ -65,10 +67,10 @@ app.include_router(events_Routes)
 app.include_router(segmentation_st_Routes)
 app.include_router(arritmiasDetector_Routes)
 
-@app.on_event("startup")
-async def startup():
-    global supabase
-    supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+# @app.on_event("startup")
+# async def startup():
+#     global supabase
+#     supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
 async def send_module_data(queue: asyncio.Queue, module: str, 
                          data: dict, study_id: str, user_id: str, gateway_url: str):
@@ -80,7 +82,7 @@ async def send_module_data(queue: asyncio.Queue, module: str,
     }
     await queue.put((f"{gateway_url}/save-module", files_for_module))
 
-async def update_progress(study_id: str, current_step: int, status: str, error: str = None):
+async def update_progress_status(study_id: str, current_step: int, status: str, error: str = None):
     update_data = {
         "current_step": current_step,
         "status": status,
@@ -88,12 +90,11 @@ async def update_progress(study_id: str, current_step: int, status: str, error: 
     }
     if error:
         update_data["error"] = error
-    
     try:
-        supabase.table("analysis-progress")\
-                .update(update_data)\
-                .eq("study_id", study_id)\
-                .execute()
+        db = next(get_db())
+        return update_progress(db, study_id, update_data)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Erro ao atualizar progresso: {str(e)}")
 
@@ -125,7 +126,7 @@ async def process_analysis(
         total_steps = len(modules)
         results = {}
 
-        await update_progress(study_id, 0, "PROCESSING")
+        await update_progress_status(study_id, 0, "PROCESSING")
 
         for step, (module_name, func, kwargs) in enumerate(modules, 1):
             try:
@@ -136,10 +137,10 @@ async def process_analysis(
                 results[module_name] = await func(**kwargs)
                 elapsed_time = time.perf_counter() - start_time  # Tempo decorrido
                 logger.info(f"Módulo {module_name} finalizado em {elapsed_time:.2f} segundos.")
-                await update_progress(study_id, step, "PROCESSING")
+                await update_progress_status(study_id, step, "PROCESSING")
             except Exception as e:
                 logger.error(f"Erro no módulo {module_name}: {str(e)}")
-                await update_progress(study_id, step, "FAILED", str(e))
+                await update_progress_status(study_id, step, "FAILED", str(e))
                 return
 
 
@@ -157,11 +158,11 @@ async def process_analysis(
             w.cancel()
         await client.aclose()
 
-        await update_progress(study_id, total_steps, "SUCCESS")
+        await update_progress_status(study_id, total_steps, "SUCCESS")
 
     except Exception as e:
         logger.error(f"Erro geral no processamento: {str(e)}")
-        await update_progress(study_id, 0, "FAILED", str(e))
+        await update_progress_status(study_id, 0, "FAILED", str(e))
     finally:
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
@@ -177,15 +178,15 @@ async def analyze_ecg(
     user_id: Optional[str] = Form(...),
 ):
     try:
-        supabase.table("analysis-progress").insert({
-            "study_id": study_id,
-            "user_id": user_id,
-            "status": "PROCESSING",
-            "current_step": 0
-        }).execute()
+        print('getDB')
+        db = next(get_db())
+        print('create progress')
+        create_progress(db, study_id, user_id)
+        print('progress created')
     except Exception as e:
-        logger.error(f"Erro ao criar registro de progresso: {str(e)}")
-        raise HTTPException(status_code=500, detail="Erro ao iniciar análise")
+        logger.error(f"Erro ao criar registro de progresso: {str(e)}\n{traceback.format_exc()}")
+        print(f"Erro ao iniciar análiseeeeeeeeeeeeee: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao iniciar análiseeeee: {str(e)}")
 
     temp_dir = tempfile.mkdtemp()  # Agora o diretório não será removido automaticamente
 
@@ -193,10 +194,18 @@ async def analyze_ecg(
         file_paths = await saveTempFiles(temp_dir, files)
         if file_paths and file_paths[0].endswith('.xcm'):
             converter_xcm(xcm_file_path=file_paths[0], output_folder=temp_dir)
+        
+        if file_paths and file_paths[0].endswith('.BIN'):
+            # supondo que você tenha recebido file_paths de seu upload:
+            bin_file = file_paths[0]
+            converter = BinConverter(bin_file)
+            converter.analyze_file_structure()
+            converter.convert_to_wfdb(temp_dir)
+        
     except Exception as e:
-        await update_progress(study_id, 0, "FAILED", str(e))
+        await update_progress_status(study_id, 0, "FAILED", str(e))
         shutil.rmtree(temp_dir)  # Remove o diretório em caso de erro
-        raise HTTPException(status_code=400, detail=f"Erro no processamento do arquivo: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Erro na conversão do arquivo: {str(e)}")
 
     background_tasks.add_task(
         process_analysis,
@@ -217,13 +226,10 @@ def healthCheck():
 @app.get("/analysis/{study_id}/status")
 async def get_analysis_status(study_id: str):
     try:
-        response = supabase.table("analysis-progress")\
-                        .select("*")\
-                        .eq("study_id", study_id)\
-                        .execute()
-        if not response.data:
-            raise HTTPException(status_code=404, detail="Análise não encontrada")
-        return response.data[0]
+        db = next(get_db())
+        return get_progress(db, study_id)
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Erro ao buscar status: {str(e)}")
+        logger.error(f"Erro ao recuperar status: {str(e)}")
         raise HTTPException(status_code=500, detail="Erro ao recuperar status")
