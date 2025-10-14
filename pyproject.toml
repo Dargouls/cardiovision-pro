@@ -1,21 +1,26 @@
-[tool.black]
-line-length = 90
-include = '\.pyi?$'
-target-version = ['py312']
-exclude = '''
-/(
-  \.git
- | \.hg
- | \.mypy_cache
- | \.tox
- | \.venv
- | \.Lib
- | \.Scripts
- | env
- | venv
- | _build
- | buck-out
- | build
- | dist
-)/
-'''
+[project]
+name = "cardiovision-pro"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12.3"
+dependencies = [
+    "antropy>=0.1.9",
+    "chardet>=5.2.0",
+    "fastapi>=0.119.0",
+    "heartpy>=1.2.7",
+    "httpx>=0.28.1",
+    "neurokit2>=0.2.12",
+    "nolds>=0.6.2",
+    "pandas>=2.3.3",
+    "psycopg2>=2.9.11",
+    "pydantic>=2.12.2",
+    "python-dotenv>=1.1.1",
+    "python-multipart>=0.0.20",
+    "pywavelets>=1.9.0",
+    "requests>=2.32.5",
+    "sqlalchemy>=2.0.44",
+    "supabase>=2.22.0",
+    "uvicorn>=0.37.0",
+    "wfdb>=4.3.0",
+]

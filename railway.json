@@ -4,6 +4,6 @@
   },
   "deploy": {
     "healthcheckPath": "/",
-    "healthcheckTimeout": 300
+    "healthcheckTimeout": 20
   }
 }
