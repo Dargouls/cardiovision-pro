@@ -2,7 +2,7 @@ FROM python:3.10
 
 RUN apt-get update && apt-get install -y \
     build-essential \
-    libatlas-base-dev \
+    libopenblas-dev \
     python3-dev \
     && apt-get clean
 
