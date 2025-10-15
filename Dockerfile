@@ -26,5 +26,5 @@ RUN uv sync --no-dev
 # Copiar o restante do código
 COPY . .
 
-# Comando para rodar o app
-CMD ["uv", "run", "uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000"]
+ENV PATH="/app/.venv/bin:${PATH}"
+CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000"]
