@@ -11,18 +11,20 @@ RUN apt-get update && apt-get install -y \
 
 # Instalar o uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Adicionar o binário do uv ao PATH
+ENV PATH="/root/.local/bin:${PATH}"
 
 WORKDIR /app
 
-# Copiar apenas o que é necessário para instalar dependências
+# Copiar apenas os arquivos de dependência
 COPY pyproject.toml uv.lock* ./
 
-# Instalar dependências do projeto (usando uv)
+# Instalar dependências do projeto
 RUN uv sync --no-dev
 
-# Copiar o resto do código
+# Copiar o restante do código
 COPY . .
 
-# Executar o app
+# Comando para rodar o app
 CMD ["uv", "run", "uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000"]
