@@ -11,7 +11,7 @@ app = APIRouter()
 
 @app.post("/full_analysis")
 async def get_full_analysis(
-  UPLOAD_DIR: str = Form(...),
+  upload_dir: str = Form(...),
 	frequency: str = Form(...),
 ):
 	"""
@@ -20,8 +20,8 @@ async def get_full_analysis(
 	print('Iniciando análise completa do ECG...')
 
 	try:
-		filename = get_available_records(UPLOAD_DIR)[0]
-		analyzer = ECGAnalyzer(UPLOAD_DIR)
+		filename = get_available_records(upload_dir)[0]
+		analyzer = ECGAnalyzer(upload_dir)
 		results = await analyzer.save_complete_analysis(filename, int(frequency))
 
 		return results
